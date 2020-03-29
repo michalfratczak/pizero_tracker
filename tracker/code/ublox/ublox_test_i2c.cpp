@@ -1,11 +1,4 @@
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/i2c-dev.h>
-#include <math.h>
-
-#include <cstring>
 #include <string>
 #include <iostream>
 
@@ -14,34 +7,11 @@
 #include "nmea/nmea.h"
 
 
-int OpenI2C(const std::string i_device = "/dev/i2c-7", const unsigned char addr = 0x42)
-{
-	using namespace std;
-
-	int file_i2c;
-
-	if ((file_i2c = open(i_device.c_str(), O_RDWR)) < 0)
-	{
-		cerr << "Failed to open the i2c bus " << i_device << endl;
-		return 0;
-	}
-
-	if (ioctl(file_i2c, I2C_SLAVE, addr) < 0)
-	{
-		cerr << "Failed to acquire bus access and/or talk to slave Address: " << addr << endl;
-		return 0;
-	}
-
-	return file_i2c;
-}
-
-
-
 void ublox_test_i2c(void)
 {
 	using namespace std;
 
-	int file_i2c = OpenI2C();
+	int file_i2c = uBLOX_i2c_open( "/dev/i2c-7", 0x42 );
 	if (!file_i2c)
 	{
 		cerr << "Failed opening I2C" << endl;

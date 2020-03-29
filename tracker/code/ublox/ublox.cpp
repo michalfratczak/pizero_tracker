@@ -2,10 +2,35 @@
 #include "ublox.h"
 
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
 
 #include <cstring>
 #include <memory>
 #include <iostream>
+
+
+int uBLOX_i2c_open(const std::string i_device, const unsigned char addr) //"/dev/i2c-7", 0x42
+{
+	using namespace std;
+
+	int file_i2c;
+
+	if ((file_i2c = open(i_device.c_str(), O_RDWR)) < 0)
+	{
+		cerr << "Failed to open the i2c bus " << i_device << endl;
+		return 0;
+	}
+
+	if (ioctl(file_i2c, I2C_SLAVE, addr) < 0)
+	{
+		cerr << "Failed to acquire bus access and/or talk to slave Address: " << addr << endl;
+		return 0;
+	}
+
+	return file_i2c;
+}
 
 
 // read char from file descriptor
@@ -143,3 +168,6 @@ std::string vec2str(std::vector<char> v)
 	delete [] buff;
 	return res;
 }
+
+
+
