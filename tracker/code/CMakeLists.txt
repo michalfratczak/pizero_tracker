@@ -10,4 +10,5 @@ option( build_tests "build tests" 0 )
 
 if( ${build_tests} )
 	add_subdirectory( ublox )
+	add_subdirectory( mtx2b )
 endif()
