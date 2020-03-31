@@ -7,3 +7,5 @@ set (mtx2b_test_src
 include_directories( ${CMAKE_SOURCE_DIR} )
 
 add_executable( mtx2b_test ${mtx2b_test_src})
+
+target_link_libraries( mtx2b_test "wiringPi" )

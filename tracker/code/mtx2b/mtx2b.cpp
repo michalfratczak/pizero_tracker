@@ -1,3 +1,5 @@
+#include "mtx2b.h"
+
 #include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -14,26 +16,31 @@ namespace
 
 struct termios G_MTX2B_SERIAL_OPTS;
 
-speed_t baud2speed(const int baud)
+speed_t baud2speed(const baud_t baud)
 {
 	switch (baud)
 	{
-		case 50: return B50;
-		case 75: return B75;
-		case 150: return B150;
-		case 200: return B200;
-		case 300: return B300;
-		case 600: return B600;
-		case 1200: return B1200;
+		case baud_t::k50: return B50;
+		case baud_t::k75: return B75;
+		case baud_t::k150: return B150;
+		case baud_t::k200: return B200;
+		case baud_t::k300: return B300;
+		case baud_t::k600: return B600;
+		case baud_t::k1200: return B1200;
 	}
-
 	return B50;
 }
 
 } // ns
 
-int mtx2b_open(const std::string i_device, const int baud) //"/dev/serial0"
+int mtx2b_open(const std::string i_device, const baud_t baud) //"/dev/serial0"
 {
+
+	if(baud == baud_t::kInvalid)
+	{
+		std::cerr<<"Invalid baud."<<std::endl;
+		return 0;
+	}
 
 	int fd = open(i_device.c_str(), O_WRONLY | O_NOCTTY);	// O_NDELAY);
 	if(!fd)
@@ -43,7 +50,6 @@ int mtx2b_open(const std::string i_device, const int baud) //"/dev/serial0"
 	}
 
 	speed_t speed = baud2speed(baud);
-
 
 	// get the current options
 	tcgetattr(fd, &G_MTX2B_SERIAL_OPTS);
