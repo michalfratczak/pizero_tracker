@@ -9,7 +9,8 @@
 #include <string>
 #include <iostream>
 
-#include "wiringPi.h"
+#include "pigpio.h"
+
 
 namespace
 {
@@ -94,7 +95,7 @@ int mtx2_write(const int serial_file_descriptor, const std::string& msg)
 }
 
 
-void mtx2_set_frequency(const std::string i_device, const float freq_Mhz) // 434.250
+void mtx2_set_frequency(const int mtx2_enable_pin_gpio, const float freq_Mhz) // 434.250
 {
 	/*
 	Frequency (in MHz) = 6.5 x (integer + (fraction / 2^19))
@@ -107,7 +108,7 @@ void mtx2_set_frequency(const std::string i_device, const float freq_Mhz) // 434
 
 	using namespace std;
 
-	const float _mtx2comp = (freq_Mhz /* + 0.0015f*/) / 6.5f;
+	const float _mtx2comp = (freq_Mhz + 0.0015f) / 6.5f;
 	const unsigned int _mtx2int = floor(_mtx2comp) - 1;
 	const long _mtx2fractional = (_mtx2comp-_mtx2int) * 524288;
 
@@ -118,16 +119,19 @@ void mtx2_set_frequency(const std::string i_device, const float freq_Mhz) // 434
 
 	char _mtx2command[17];
 	snprintf( _mtx2command, 17, "@PRG_%02X%06lX\r", _mtx2int, _mtx2fractional );
+	// for(size_t i=0; i<sizeof(_mtx2command); ++i)		_mtx2command[i] = ~ _mtx2command[i];
+	// printf("MTX2 command  is %s\n", _mtx2command);
 
-	for(size_t i=0; i<sizeof(_mtx2command); ++i)		_mtx2command[i] = ~ _mtx2command[i];
+	gpioWaveAddNew();
+	gpioWaveAddSerial(mtx2_enable_pin_gpio, 9600, 8, 2, 0, sizeof(_mtx2command), _mtx2command);
+	const int wave_id = gpioWaveCreate();
 
-	printf("MTX2 command  is %s\n", _mtx2command);
-
-	/////////
-	//
-	int radio_fd = mtx2_open( i_device, baud_t::k4800 );
-	mtx2_write( radio_fd, _mtx2command, sizeof(_mtx2command) );
-	sleep(1);
-	close(radio_fd);
+	int repetitions = 2;
+	while ( repetitions-- && wave_id >= 0 )
+	{
+		gpioWaveTxSend(wave_id, 0);
+		while (gpioWaveTxBusy())
+			time_sleep(0.1);
+	}
 
 }

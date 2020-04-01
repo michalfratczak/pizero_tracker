@@ -34,3 +34,5 @@
 # vscode
 .vscode
 .vscode/*
+pcb/eagle/.HabTrackerPiZero_Shield.brd.lck
+pcb/eagle/.HabTrackerPiZero_Shield.sch.lck

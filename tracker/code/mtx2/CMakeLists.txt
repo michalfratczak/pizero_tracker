@@ -8,4 +8,4 @@ include_directories( ${CMAKE_SOURCE_DIR} )
 
 add_executable( mtx2_test ${mtx2_test_src})
 
-target_link_libraries( mtx2_test "wiringPi" )
+target_link_libraries( mtx2_test "pigpio" )

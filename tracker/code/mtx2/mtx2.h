@@ -23,4 +23,5 @@ int mtx2_write(const int serial_file_descriptor, const char* msg, const size_t m
 int mtx2_write(const int serial_file_descriptor, const std::string& msg);
 
 // will open and close i_device
-void mtx2_set_frequency(const std::string i_device, const float freq_Mhz); // 434.250
+// void mtx2_set_frequency(const std::string i_device, const float freq_Mhz); // 434.250
+void mtx2_set_frequency(const int mtx2_enable_pin, const float freq_Mhz); // 434.250

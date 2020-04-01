@@ -4,18 +4,20 @@
 #include <string>
 #include <iostream>
 
-#include "wiringPi.h"
+#include "pigpio.h"
 
 #include "mtx2/mtx2.h"
 
-const int GPIOPIN_MTX2_EN = 3;
+// const int GPIOPIN_MTX2_EN_wPI = 3;
+const unsigned int GPIOPIN_MTX2_EN_gpio = 22;
 int radio_fd = 0;
 
 
 void CTRL_C(int sig)
 {
 	close(radio_fd);
-	digitalWrite (GPIOPIN_MTX2_EN, 0);
+	gpioWrite(GPIOPIN_MTX2_EN_gpio, 0);
+	gpioTerminate();
 	exit(0);
 }
 
@@ -23,31 +25,43 @@ void CTRL_C(int sig)
 int main()
 {
 	signal(SIGINT, CTRL_C);
+	signal(SIGKILL, CTRL_C);
+	signal(SIGTERM, CTRL_C);
 
-	wiringPiSetup();
 	system("sudo modprobe w1-gpio");
 
-	pinMode (GPIOPIN_MTX2_EN, INPUT);
-	pullUpDnControl(GPIOPIN_MTX2_EN, PUD_DOWN);
-	pinMode (GPIOPIN_MTX2_EN, OUTPUT);
+	if (gpioInitialise() < 0)
+	{
+		std::cerr<<"pigpio initialisation failed\n";
+		return 1;
+	}
+
+
+	gpioSetPullUpDown(GPIOPIN_MTX2_EN_gpio, PI_PUD_DOWN);
+	gpioSetMode(GPIOPIN_MTX2_EN_gpio, PI_OUTPUT);
+	gpioWrite (GPIOPIN_MTX2_EN_gpio, 1);
+
+	mtx2_set_frequency(GPIOPIN_MTX2_EN_gpio, 434.50f);
 
 	const std::string radio_serial_device("/dev/serial0");
-	mtx2_set_frequency(radio_serial_device, 434.580f);
-	mtx2_set_frequency(radio_serial_device, 434.580f);
-
 	radio_fd = mtx2_open(radio_serial_device, baud_t::k50); //"/dev/serial0"
-	digitalWrite (GPIOPIN_MTX2_EN, 1);
 
-	int count = 10;
+
+	int count = 30;
 	while(count--)
 	{
 		std::string msg("message on radio waves !");
 		std::cout<<msg<<" "<<count<<std::endl;
+
+		gpioWrite (GPIOPIN_MTX2_EN_gpio, 1);
 		std::cout<<"bytes: "<<mtx2_write(radio_fd, msg)<<std::endl;
+		gpioWrite (GPIOPIN_MTX2_EN_gpio, 0);
 		std::cout<<"-----"<<std::endl;
+
 		sleep(2);
 	}
 
 	close(radio_fd);
-	digitalWrite (GPIOPIN_MTX2_EN, 0);
+	gpioWrite (GPIOPIN_MTX2_EN_gpio, 0);
+	gpioTerminate();
 }
