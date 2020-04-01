@@ -15,3 +15,5 @@ if( ${build_tests} )
 	add_subdirectory( mtx2 )
 	add_subdirectory( ds18b20 )
 endif()
+
+add_subdirectory( main )
