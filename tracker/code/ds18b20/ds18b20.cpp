@@ -60,7 +60,7 @@ float read_temp_from_ds18b20(const std::string& device)
 
     // crc
     //
-    const std::regex rex_crc( R"_(^\s*?([\w\w\s]+): crc=(\d\w) (YES)\s*$)_" );
+    const std::regex rex_crc( R"_(^\s*?([\w\w\s]+): crc=(\w\w) (YES)\s*$)_" );
     smatch match_crc;
     bool crc_ok = false;
     for( const auto& l : file_lines )
