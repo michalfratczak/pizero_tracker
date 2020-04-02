@@ -84,14 +84,14 @@ uint8_t UBX_CMD_VTG_OFF[] = {
 
 
 
-void UBX_CHECKSUM(uint8_t* Buffer, const size_t BufferSz, uint8_t* CK_A, uint8_t* CK_B)
+void UBX_CHECKSUM(uint8_t* buffer, const size_t buffer_sz, uint8_t* ck_a, uint8_t* ck_b)
 {
-	*CK_A = 0;
-	*CK_B = 0;
-	for(size_t i=0; i<BufferSz; ++i)
+	*ck_a = 0;
+	*ck_b = 0;
+	for(size_t i=0; i<buffer_sz; ++i)
 	{
-		*CK_A += Buffer[i];
-		*CK_B += *CK_A;
+		*ck_a += buffer[i];
+		*ck_b += *ck_a;
 	}
 }
 

@@ -50,8 +50,6 @@ std::vector<char> uBLOX_read_msg(int fd, int usec_sleep)
 	thread_local int buff_i = 0;
 	thread_local int buff_o = 0;
 
-	// auto msg_found_time = time_now();
-
 	while( res_str_i < sizeof(res_str) )
 	{
 		if( buff_i == buff_o ) // all buffer was scanned since last call
@@ -88,9 +86,6 @@ std::vector<char> uBLOX_read_msg(int fd, int usec_sleep)
 			continue;
 		}
 
-		// cout<<time_duration_mill(msg_found_time)<<" ms"<<endl;
-		// msg_found_time = time_now();
-
 		// copy to output buffer
 		while(buff_i < buff_o)
 		{
@@ -124,10 +119,7 @@ bool uBLOX_write_msg_ack(int fd, uint8_t* p_msg, size_t msg_sz, const size_t wai
 	int written_bytes = write(fd, p_msg, msg_sz);
 
 	if(written_bytes != msg_sz)
-	{
-		// cerr<<"uBLOX_write_msg_ack: wrong bytes numer written: "<<written_bytes<<" of expected "<<msg_sz<<endl;
 		return false;
-	}
 
 	unique_ptr<uint8_t[]> ack_packet( new uint8_t[10] );
 	UBX_MAKE_PACKET_ACK( p_msg[2], p_msg[3], ack_packet.get() );
@@ -141,21 +133,14 @@ bool uBLOX_write_msg_ack(int fd, uint8_t* p_msg, size_t msg_sz, const size_t wai
 		vector<char> result_msg = uBLOX_read_msg(fd, 0); // no sleep, we can't miss any message
 
 		if( UBX_PACKET_EQ(result_msg, ack_packet.get(), 10) )
-		{
-			cout<<"uBLOX ACK 0x"<<hex<<int(p_msg[2])<<" 0x"<<int(p_msg[3])<<dec<<endl;
 			return true;
-		}
 
 		if( UBX_PACKET_EQ(result_msg, nak_packet.get(), 10) )
-		{
-			cout<<"uBLOX NAK 0x"<<hex<<int(p_msg[2])<<" 0x"<<int(p_msg[3])<<dec<<endl;
 			return false;
-		}
 
 		// cerr<<"uBLOX_write_msg_ack: some other message"<<endl;
 	}
 
-	cout<<"uBLOX no ACK 0x"<<hex<<int(p_msg[2])<<" 0x"<<int(p_msg[3])<<dec<<endl;
 	return false;
 }
 
@@ -168,6 +153,4 @@ std::string vec2str(std::vector<char> v)
 	delete [] buff;
 	return res;
 }
-
-
 

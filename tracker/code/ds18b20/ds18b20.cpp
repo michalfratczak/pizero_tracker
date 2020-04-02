@@ -27,7 +27,9 @@ std::vector<std::string>  get_dir_content(const std::string dir)
 
     return ret;
 }
+
 } // ns
+
 
 std::string find_ds18b20_device(const std::string& base_dir) // "/sys/bus/w1/devices/"
 {
@@ -51,7 +53,6 @@ float read_temp_from_ds18b20(const std::string& device)
     8a 01 4b 46 7f ff 06 10 2c : crc=2c YES
     8a 01 4b 46 7f ff 06 10 2c t=24625
     */
-
 
     vector<string> file_lines;
     string line;
