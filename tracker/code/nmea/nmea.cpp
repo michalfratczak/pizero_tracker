@@ -1,10 +1,12 @@
 #include "nmea.h"
 
+// #include <stdio.h>
 #include <math.h>
 #include <cstring>
 #include <iostream>
 
-int NMEA_checksum(const char *buff, const size_t buff_sz)
+
+int NMEA_checksum(const char* buff, const size_t buff_sz)
 {
 	int c = 0;
 	for (size_t i = 0; i < buff_sz; ++i)
@@ -12,39 +14,69 @@ int NMEA_checksum(const char *buff, const size_t buff_sz)
 	return c;
 }
 
-// buff is a zero terminated string
-bool NMEA_msg_checksum_ok(const char *buff)
+
+bool NMEA_msg_checksum_ok(const char* msg, const size_t msg_sz)
 {
-	size_t max_scan = 100;
-	const char *buff_dollar = buff;
-	while (max_scan-- && *buff_dollar != '$' && *buff_dollar != '\0')
-		buff_dollar++;
-	if (!max_scan || *buff_dollar == '\0')
-		return 0;
-
-	max_scan = 100;
-	const char *buff_star = buff_dollar + 1;
-	while (max_scan-- && *buff_star != '*' && *buff_star != '\0')
-		buff_star++;
-	if (!max_scan || *buff_star == '\0')
-		return 0;
-
-	// std::cout<<*buff_dollar<<" "<<*buff_star<<std::endl;
-
-	int chck = NMEA_checksum(buff_dollar + 1, buff_star - buff_dollar - 1);
+	int chck = NMEA_checksum(msg+1, msg_sz-4); // without $, up to *
 	char chck_str[2];
 	sprintf(chck_str, "%02X", chck);
 
 	bool checksum_is_equal =
-		chck_str[0] == *(buff_star + 1) && chck_str[1] == *(buff_star + 2);
+		chck_str[0] == *(msg+msg_sz-2) && chck_str[1] == *(msg+msg_sz-1);
 
 	return checksum_is_equal;
 }
 
-bool NMEA_msg_checksum_ok(const std::string &msg)
+
+bool NMEA_msg_checksum_ok(const std::string& msg)
 {
-	return NMEA_msg_checksum_ok(msg.c_str());
+	return NMEA_msg_checksum_ok( msg.c_str(), msg.size() );
 }
+
+
+// return false if not found
+bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_t& out)
+{
+	// find end of message: *
+	const char* buff_star = buff + buff_sz - 1;
+	while ( buff <= buff_star && *buff_star != '*' )
+		buff_star--;
+
+	if(buff <= buff_star)
+		out = buff_star - buff + 2;
+	else
+		return false;
+
+	const char* buff_dollar = buff_star;
+	while ( buff <= buff_dollar && *buff_dollar != '$' )
+		buff_dollar--;
+
+	if(buff <= buff_dollar)
+		in = buff_dollar - buff;
+	else
+		return false;
+
+	return true;
+}
+
+
+std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz)
+{
+	size_t in;
+	size_t out;
+	bool has_msg = NMEA_get_last_msg(buff, buff_sz, in, out);
+	if(has_msg)
+		return std::string(buff+in, buff+out+1);
+	else
+		return "";
+}
+
+
+std::string NMEA_get_last_msg(const std::string& msg)
+{
+	return  NMEA_get_last_msg( msg.c_str(), msg.size() );
+}
+
 
 float NMEA_Deg_2_Dec(float i_pos)
 {
@@ -55,7 +87,7 @@ float NMEA_Deg_2_Dec(float i_pos)
 }
 
 
-bool NMEA_parse(const char *Buffer, nmea_t& o_nmea)
+bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 {
 	using namespace std;
 
@@ -195,6 +227,7 @@ bool NMEA_parse(const char *Buffer, nmea_t& o_nmea)
 	return false;
 
 }
+
 
 std::ostream& operator<<(std::ostream& s, const nmea_t& nmea)
 {

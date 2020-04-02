@@ -40,9 +40,15 @@ public:
 int NMEA_checksum(const char *buff, const size_t buff_sz);
 
 // buff is a zero terminated string
-bool NMEA_msg_checksum_ok(const char *buff);
+// $GNGGA,170814.00,,,,,0,00,99.99,,,,,,*73
+bool NMEA_msg_checksum_ok(const char* msg, const size_t msg_sz);
+bool NMEA_msg_checksum_ok(const std::string& msg);
 
-bool NMEA_msg_checksum_ok(const std::string &msg);
+// get full NMEA message from a buffer;
+// NMEA message: $GNGGA,170814.00,,,,,0,00,99.99,,,,,,*73
+bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_t& out);
+std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz);
+std::string NMEA_get_last_msg(const std::string& msg);
 
 float NMEA_Deg_2_Dec(float i_pos);
 
