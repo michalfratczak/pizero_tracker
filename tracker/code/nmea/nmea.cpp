@@ -6,6 +6,19 @@
 #include <iostream>
 
 
+namespace
+{
+
+float degree_2_decimal(float i_pos)
+{
+	float degs = trunc(i_pos / 100);
+	float mins = i_pos - 100.0f * degs;
+	float res = degs + mins / 60.0f;
+	return res;
+}
+
+} // ns
+
 int NMEA_checksum(const char* buff, const size_t buff_sz)
 {
 	int c = 0;
@@ -82,15 +95,6 @@ std::string NMEA_get_last_msg(const std::string& msg)
 }
 
 
-float NMEA_Deg_2_Dec(float i_pos)
-{
-	float degs = trunc(i_pos / 100);
-	float mins = i_pos - 100.0f * degs;
-	float res = degs + mins / 60.0f;
-	return res;
-}
-
-
 bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 {
 	using namespace std;
@@ -136,11 +140,11 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 				utc, &lat, &ns, &lon, &ew, &quality, &sats, &hdop, &alt, &alt_units);
 		if(scanned_positions == 10)
 		{
-			lat = NMEA_Deg_2_Dec(lat);
+			lat = degree_2_decimal(lat);
 			if(ns == 'S')
 				lat = -lat;
 
-			lon = NMEA_Deg_2_Dec(lon);
+			lon = degree_2_decimal(lon);
 			if(ew == 'W')
 				lon = -lon;
 
@@ -193,11 +197,11 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 			speedOG = atof(speedstring);
 			courseOG = atof(coursestring);
 
-			lat = NMEA_Deg_2_Dec(lat);
+			lat = degree_2_decimal(lat);
 			if(ns == 'S')
 				lat = -lat;
 
-			lon = NMEA_Deg_2_Dec(lon);
+			lon = degree_2_decimal(lon);
 			if(ew == 'W')
 				lon = -lon;
 

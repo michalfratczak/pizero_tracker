@@ -55,8 +55,6 @@ bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_
 std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz);
 std::string NMEA_get_last_msg(const std::string& msg);
 
-float NMEA_Deg_2_Dec(float i_pos);
-
 bool NMEA_parse(const char *Buffer, nmea_t& o_nmea);
 
 std::ostream& operator<<(std::ostream& s, const nmea_t& nmea);
