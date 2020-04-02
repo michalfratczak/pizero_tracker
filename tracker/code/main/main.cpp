@@ -3,6 +3,7 @@
 
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 
 #include "pigpio.h"
@@ -48,16 +49,20 @@ int main1()
 	gpioSetMode(GPIOPIN_MTX2_EN_gpio, PI_OUTPUT);
 	gpioWrite (GPIOPIN_MTX2_EN_gpio, 1);
 	mtx2_set_frequency(GPIOPIN_MTX2_EN_gpio, 434.50f);
-	const std::string radio_serial_device("/dev/serial0");
-	radio_fd = mtx2_open(radio_serial_device, baud_t::k50);
-    cout<<"Radio FD "<<radio_fd<<endl;
+	radio_fd = mtx2_open("/dev/serial0", baud_t::k300);
+    if (!radio_fd)
+	{
+		cerr<<"Failed opening radio UART /dev/serial0"<<endl;
+		return 1;
+	}
+	cout<<"Radio FD "<<radio_fd<<endl;
 
     // uBLOX I2C
     //
     int uBlox_i2c_fd = uBLOX_i2c_open( "/dev/i2c-7", 0x42 );
 	if (!uBlox_i2c_fd)
 	{
-		cerr << "Failed opening I2C" << endl;
+		cerr<<"Failed opening I2C /dev/i2c-7 0x42"<<endl;
 		return 1;
 	}
     cout<<"uBLOX I2C FD "<<uBlox_i2c_fd<<endl;
@@ -75,17 +80,18 @@ int main1()
     // DS18B20 temp sensor
     //
     const string ds18b20_device = find_ds18b20_device();
-    cout<<"ds18b20_device "<<ds18b20_device<<endl;
     if(ds18b20_device == "")
     {
 		cerr << "Failed ds18b20_device "<<ds18b20_device<<endl;
         return 1;
     }
+    cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
     nmea_t nmea; // parsed GPS data
 	while(true)
 	{
         // gps data
+		//
 		const vector<char> nmea_data = uBLOX_read_msg(uBlox_i2c_fd);
 		const string nmea_str(vec2str(nmea_data));
         if( !NMEA_msg_checksum_ok(nmea_str) )
@@ -100,15 +106,18 @@ int main1()
         const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
 
         // radio message
+		//
         stringstream  radio_msg_stream;
         radio_msg_stream<<"$ ";
         radio_msg_stream<<nmea;
-        radio_msg_stream<<" temp:"<<temperature_cels;
-
+        radio_msg_stream<<" temp:"<<setprecision(1)<<fixed<<temperature_cels;
         const string radio_msg_string = radio_msg_stream.str();
         cout<<radio_msg_string<<endl;
 
-		mtx2_write(radio_fd, radio_msg_string);
+		// emit RF
+		//
+		mtx2_write(radio_fd, radio_msg_string + '\n');
+
 	}
 
     close(uBlox_i2c_fd);
