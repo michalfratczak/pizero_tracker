@@ -46,6 +46,11 @@ bool NMEA_msg_checksum_ok(const std::string& msg);
 
 // get full NMEA message from a buffer;
 // NMEA message: $GNGGA,170814.00,,,,,0,00,99.99,,,,,,*73
+// if not found, return false or empty string
+// output:
+//		buff+in points to $
+// 		buff+out points to second char of checksum (3)
+
 bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_t& out);
 std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz);
 std::string NMEA_get_last_msg(const std::string& msg);

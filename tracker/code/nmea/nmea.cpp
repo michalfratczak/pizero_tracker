@@ -34,8 +34,12 @@ bool NMEA_msg_checksum_ok(const std::string& msg)
 }
 
 
+// $GNGGA,170814.00,,,,,0,00,99.99,,,,,,*73
 // return false if not found
-bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_t& out)
+// output:
+//		buff+in points to $
+// 		buff+out points to second char of checksum (3)
+bool NMEA_get_last_msg(const char* buff, const size_t buff_sz, size_t& in, size_t& out)
 {
 	// find end of message: *
 	const char* buff_star = buff + buff_sz - 1;
@@ -60,7 +64,7 @@ bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_
 }
 
 
-std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz)
+std::string NMEA_get_last_msg(const char* buff, const size_t buff_sz)
 {
 	size_t in;
 	size_t out;
