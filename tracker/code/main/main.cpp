@@ -19,6 +19,41 @@ const unsigned int GPIOPIN_MTX2_EN_gpio = 22;
 int radio_fd = 0;
 
 
+char _hex(char Character)
+{
+	char _hexTable[] = "0123456789ABCDEF";
+	return _hexTable[int(Character)];
+}
+
+std::string CRC(std::string i_str)
+{
+	using std::string;
+
+	unsigned int CRC = 0xffff;
+	// unsigned int xPolynomial = 0x1021;
+
+	for (size_t i = 0; i < i_str.length(); i++)
+	{
+		CRC ^= (((unsigned int)i_str[i]) << 8);
+		for (int j=0; j<8; j++)
+		{
+			if (CRC & 0x8000)
+			    CRC = (CRC << 1) ^ 0x1021;
+			else
+			    CRC <<= 1;
+		}
+	}
+
+	string result;
+	result += _hex((CRC >> 12) & 15);
+	result += _hex((CRC >> 8) & 15);
+	result += _hex((CRC >> 4) & 15);
+	result += _hex(CRC & 15);
+
+	return result;
+}
+
+
 void CTRL_C(int sig)
 {
 	close(radio_fd);
@@ -88,8 +123,11 @@ int main1()
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
     nmea_t nmea; // parsed GPS data
+	int msg_num = 0;
 	while(true)
 	{
+		msg_num++;
+
         // gps data
 		//
 		const vector<char> nmea_data = uBLOX_read_msg(uBlox_i2c_fd);
@@ -105,19 +143,21 @@ int main1()
         //
         const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
 
-        // radio message
-		//
-        stringstream  radio_msg_stream;
-        radio_msg_stream<<"$ ";
-        radio_msg_stream<<nmea;
-        radio_msg_stream<<" temp:"<<setprecision(1)<<fixed<<temperature_cels;
-        const string radio_msg_string = radio_msg_stream.str();
-        cout<<radio_msg_string<<endl;
+        stringstream  msg_stream;
+        // msg_stream<<nmea;
+        msg_stream<<"not-a-real-flight";
+        msg_stream<<","<<msg_num;
+        msg_stream<<",123456";
+        msg_stream<<","<<nmea.lat<<","<<nmea.lon<<","<<nmea.alt;
+        // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<nmea.alt; // example NMEA format
+        msg_stream<<","<<setprecision(1)<<fixed<<temperature_cels;
+
+		const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
+        cout<<msg_and_crc<<endl;
 
 		// emit RF
 		//
-		mtx2_write(radio_fd, radio_msg_string + '\n');
-
+		mtx2_write(radio_fd, msg_and_crc + '\n');
 	}
 
     close(uBlox_i2c_fd);
