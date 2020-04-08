@@ -1,4 +1,5 @@
 
+#include <math.h>
 #include <string>
 #include <iostream>
 
@@ -40,16 +41,25 @@ void ublox_test_i2c(void)
 	nmea_t nmea;
 
 	long int msg_cnt = 0;
+	long int msg_cnt_valid = 0;
 	while (1)
 	{
+		int sleep_s = int( pow((double)rand()/RAND_MAX,2) * 10 );
+		sleep(sleep_s);
+
 		vector<char> msg_data = uBLOX_read_msg(uBlox_i2c_fd);
-		string msg(vec2str(msg_data));
-
-		cout<<msg_cnt<<": "<<msg<<" "<<NMEA_msg_checksum_ok(msg)<<endl;
-		NMEA_parse( msg.c_str(), nmea );
-		cout<<nmea<<endl;
-
+		string msg( NMEA_get_last_msg(msg_data.data(), msg_data.size()) );
 		msg_cnt++;
+
+		const bool msg_valid = NMEA_msg_checksum_ok(msg);
+		if(msg_valid)
+			msg_cnt_valid++;
+
+		cout<<msg_cnt_valid<<" OK of "<<msg_cnt<<" TOTAL. "<<msg<<" "<<msg_valid<<endl;
+
+		NMEA_parse( msg.c_str(), nmea );
+		// cout<<nmea<<endl;
+
 		if (msg_cnt == 15)
 		{
 			cout << "Setting uBLOX Pedestrian Model" << endl;
