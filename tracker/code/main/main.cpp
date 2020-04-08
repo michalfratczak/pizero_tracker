@@ -130,8 +130,8 @@ int main1()
 
         // gps data
 		//
-		const vector<char> nmea_data = uBLOX_read_msg(uBlox_i2c_fd);
-		const string nmea_str(vec2str(nmea_data));
+		const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
+		const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
         if( !NMEA_msg_checksum_ok(nmea_str) )
         {
             cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
