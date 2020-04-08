@@ -101,7 +101,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 	// cout << "??? " << Buffer << endl;
 
-	float utc = 0;
+	int utc = 0;
 	int date = 0;
 
 	float lat = 0;
@@ -136,7 +136,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 	if (strncmp(Buffer + 3, "GGA", 3) == 0) // Global positioning system fix data
 	{
 		int scanned_positions =
-			sscanf(Buffer + 7, "%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &
+			sscanf(Buffer + 7, "%d,%f,%c,%f,%c,%d,%d,%f,%f,%c", &
 				utc, &lat, &ns, &lon, &ew, &quality, &sats, &hdop, &alt, &alt_units);
 		if(scanned_positions == 10)
 		{
@@ -148,8 +148,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 			if(ew == 'W')
 				lon = -lon;
 
-
-			o_nmea.utc = utc;
+			sprintf(o_nmea.utc, "%06d", utc);
 			o_nmea.lat = lat;
 			o_nmea.lon = lon;
 			o_nmea.alt = alt;
@@ -205,7 +204,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 			if(ew == 'W')
 				lon = -lon;
 
-			o_nmea.utc = utc;
+			sprintf(o_nmea.utc, "%06d", utc);
 			o_nmea.lat = lat;
 			o_nmea.lon = lon;
 			o_nmea.alt = alt;

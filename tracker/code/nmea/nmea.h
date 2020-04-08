@@ -7,7 +7,7 @@
 class nmea_t
 {
 public:
-	int utc = 0;
+	char utc[6] = {'0', '0', '0', '0', '0', '0'}; // HHMMSS
 
 	float lat = 0; // degree
 	float lon = 0; // degree

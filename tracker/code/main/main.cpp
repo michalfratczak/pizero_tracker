@@ -56,8 +56,8 @@ std::string CRC(std::string i_str)
 
 void CTRL_C(int sig)
 {
-	close(radio_fd);
 	gpioWrite(GPIOPIN_MTX2_EN_gpio, 0);
+	close(radio_fd);
 	gpioTerminate();
 	exit(0);
 }
@@ -147,7 +147,7 @@ int main1()
         // msg_stream<<nmea;
         msg_stream<<"not-a-real-flight";
         msg_stream<<","<<msg_num;
-        msg_stream<<",123456";
+        msg_stream<<","<<nmea.utc;
         msg_stream<<","<<nmea.lat<<","<<nmea.lon<<","<<nmea.alt;
         // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<nmea.alt; // example NMEA format
         msg_stream<<","<<setprecision(1)<<fixed<<temperature_cels;
@@ -167,6 +167,7 @@ int main1()
 
     return 0;
 }
+
 
 int main(int argc, char** argv)
 {
