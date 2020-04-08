@@ -132,12 +132,15 @@ int main1()
 		//
 		const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
 		const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
+		// cout<<nmea_str<<endl;
         if( !NMEA_msg_checksum_ok(nmea_str) )
         {
             cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
             continue;
         }
+
 		NMEA_parse( nmea_str.c_str(), nmea );
+		const bool gps_fix_valid = nmea.fix_status == nmea_t::fix_status_t::kValid;
 
         // ds18b20
         //
@@ -149,6 +152,7 @@ int main1()
         msg_stream<<","<<msg_num;
         msg_stream<<","<<nmea.utc;
         msg_stream<<","<<nmea.lat<<","<<nmea.lon<<","<<nmea.alt;
+		msg_stream<<","<<nmea.sats<<","<<gps_fix_valid;
         // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<nmea.alt; // example NMEA format
         msg_stream<<","<<setprecision(1)<<fixed<<temperature_cels;
 
