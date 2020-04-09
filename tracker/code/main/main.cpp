@@ -14,6 +14,8 @@
 #include "ublox/ublox.h"
 #include "ds18b20/ds18b20.h"
 
+#include "ssdv_t.h"
+
 
 const unsigned int GPIOPIN_MTX2_EN_gpio = 22;
 int radio_fd = 0;
@@ -63,7 +65,7 @@ void CTRL_C(int sig)
 }
 
 
-int main1()
+int main1(int argc, char** argv)
 {
     using namespace std;
 
@@ -122,7 +124,9 @@ int main1()
     }
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
+
     nmea_t nmea; // parsed GPS data
+	ssdv_t ssdv_data;
 	int msg_num = 0;
 	while(true)
 	{
@@ -146,6 +150,8 @@ int main1()
         //
         const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
 
+		// telemetry message
+		//
         stringstream  msg_stream;
         // msg_stream<<nmea;
         msg_stream<<"not-a-real-flight";
@@ -159,9 +165,19 @@ int main1()
 		const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
         cout<<msg_and_crc<<endl;
 
-		// emit RF
+		// emit telemetry msg RF
 		//
 		mtx2_write(radio_fd, msg_and_crc + '\n');
+
+		// SSDV image
+		//
+		if( argc > 1 && !ssdv_data.size() )
+			ssdv_data.load_file(argv[1]);
+		if( ssdv_data.size() )
+		{
+			const ssdv_t::tile_t tile = ssdv_data.next_tile();
+			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
+		}
 	}
 
     close(uBlox_i2c_fd);
@@ -172,8 +188,29 @@ int main1()
     return 0;
 }
 
+int test_ssdv(int argc, char** argv)
+{
+	using namespace std;
+
+	string fname(argv[1]);
+
+	ssdv_t ssdv_data;
+	const size_t num_tiles = ssdv_data.load_file(fname);
+	cout<<"num_tiles: "<<num_tiles<<endl;
+
+	while( ssdv_data.size() )
+	{
+		const ssdv_t::tile_t tile = ssdv_data.next_tile();
+		string data(tile.data(), sizeof(tile));
+		cout<<data<<endl;
+	}
+
+	return 0;
+
+}
 
 int main(int argc, char** argv)
 {
-    return main1();
+	// return test_ssdv(argc, argv);
+	return main1(argc, argv);
 }

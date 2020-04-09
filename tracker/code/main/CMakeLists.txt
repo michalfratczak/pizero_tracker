@@ -1,6 +1,7 @@
 
 set (tracker_src
 	main.cpp
+	ssdv_t.cpp
 	../mtx2/mtx2.cpp
 	../nmea/nmea.cpp
 	../ublox/ublox_cmds.cpp
