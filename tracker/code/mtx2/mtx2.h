@@ -6,7 +6,6 @@ enum class baud_t {
 	kInvalid = 0,
 	k50 = 50,
 	k75 = 75,
-	k100 = 100,
 	k150 = 150,
 	k200 = 200,
 	k300 = 300,
