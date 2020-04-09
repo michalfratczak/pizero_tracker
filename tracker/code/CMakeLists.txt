@@ -18,3 +18,4 @@ if( ${build_tests} )
 endif()
 
 add_subdirectory( main )
+add_subdirectory( ssdv_build )
