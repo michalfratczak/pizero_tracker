@@ -227,6 +227,9 @@ int main1(int argc, char** argv)
 		if( ssdv_data.size() )
 		{
 			const ssdv_t::tile_t tile = ssdv_data.next_tile();
+			// delete image after send
+			if(!ssdv_data.size())
+				system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
 			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}
