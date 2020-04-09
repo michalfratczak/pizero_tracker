@@ -24,3 +24,6 @@ int mtx2_write(const int serial_file_descriptor, const std::string& msg);
 // will open and close i_device
 // void mtx2_set_frequency(const std::string i_device, const float freq_Mhz); // 434.250
 void mtx2_set_frequency(const int mtx2_enable_pin, const float freq_Mhz); // 434.250
+
+int baud_t_to_int(const baud_t&);
+baud_t baud_t_from_int(const int);

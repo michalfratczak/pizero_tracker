@@ -15,9 +15,10 @@
 #include "ds18b20/ds18b20.h"
 
 #include "ssdv_t.h"
+#include "cli.h"
+#include "GLOB.h"
 
 
-const unsigned int GPIOPIN_MTX2_EN_gpio = 22;
 int radio_fd = 0;
 
 
@@ -58,7 +59,7 @@ std::string CRC(std::string i_str)
 
 void CTRL_C(int sig)
 {
-	gpioWrite(GPIOPIN_MTX2_EN_gpio, 0);
+	gpioWrite(GLOB::get().cli.hw_pin_radio_on, 0);
 	close(radio_fd);
 	gpioTerminate();
 	exit(0);
@@ -68,6 +69,41 @@ void CTRL_C(int sig)
 int main1(int argc, char** argv)
 {
     using namespace std;
+
+	CLI(argc, argv); // command line interface
+	auto& G = GLOB::get();
+
+	if( !G.cli.callsign.size() ) {
+		cerr<<"ERROR:\n\tNo Callsign."<<endl;
+		return 1;
+	}
+
+	if( !G.cli.freqMHz ) {
+		cerr<<"ERROR:\n\tNo frequency."<<endl;
+		return 1;
+	}
+
+	if(G.cli.baud == baud_t::kInvalid) {
+		cerr<<"ERROR:\n\tNo baud."<<endl;
+		return 1;
+	}
+
+	if( !G.cli.hw_pin_radio_on ) {
+		cerr<<"ERROR:\n\tNo hw_pin_radio_on."<<endl;
+		return 1;
+	}
+
+	if( !G.cli.hw_radio_serial.size() ) {
+		cerr<<"ERROR:\n\tNo hw_radio_serial."<<endl;
+		return 1;
+	}
+
+	if( !G.cli.hw_ublox_device.size() ) {
+		cerr<<"ERROR:\n\tNo hw_ublox_device."<<endl;
+		return 1;
+	}
+
+	cout<<G.str()<<endl;
 
 	signal(SIGINT, CTRL_C);
 	signal(SIGTERM, CTRL_C);
@@ -82,27 +118,25 @@ int main1(int argc, char** argv)
 
     // RADIO
     //
-	gpioSetPullUpDown(GPIOPIN_MTX2_EN_gpio, PI_PUD_DOWN);
-	gpioSetMode(GPIOPIN_MTX2_EN_gpio, PI_OUTPUT);
-	gpioWrite (GPIOPIN_MTX2_EN_gpio, 1);
-	mtx2_set_frequency(GPIOPIN_MTX2_EN_gpio, 434.50f);
-	radio_fd = mtx2_open("/dev/serial0", baud_t::k300);
-    if (!radio_fd)
+	gpioSetPullUpDown( G.cli.hw_pin_radio_on, PI_PUD_DOWN );
+	gpioSetMode( G.cli.hw_pin_radio_on, PI_OUTPUT );
+	gpioWrite ( G.cli.hw_pin_radio_on, 1 );
+	mtx2_set_frequency( G.cli.hw_pin_radio_on, G.cli.freqMHz );
+	radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
+    if (radio_fd < 1)
 	{
-		cerr<<"Failed opening radio UART /dev/serial0"<<endl;
+		cerr<<"Failed opening radio UART "<<G.cli.hw_radio_serial<<endl;
 		return 1;
 	}
-	cout<<"Radio FD "<<radio_fd<<endl;
 
     // uBLOX I2C
     //
-    int uBlox_i2c_fd = uBLOX_i2c_open( "/dev/i2c-7", 0x42 );
+    int uBlox_i2c_fd = uBLOX_i2c_open( G.cli.hw_ublox_device, 0x42 );
 	if (!uBlox_i2c_fd)
 	{
-		cerr<<"Failed opening I2C /dev/i2c-7 0x42"<<endl;
+		cerr<<"Failed opening I2C "<<G.cli.hw_ublox_device<<" 0x42"<<endl;
 		return 1;
 	}
-    cout<<"uBLOX I2C FD "<<uBlox_i2c_fd<<endl;
 	write(uBlox_i2c_fd, UBX_CMD_EnableOutput_ACK_ACK, sizeof(UBX_CMD_EnableOutput_ACK_ACK));
 	write(uBlox_i2c_fd, UBX_CMD_EnableOutput_ACK_NAK, sizeof(UBX_CMD_EnableOutput_ACK_NAK));
 	sleep(3);
@@ -154,7 +188,7 @@ int main1(int argc, char** argv)
 		//
         stringstream  msg_stream;
         // msg_stream<<nmea;
-        msg_stream<<"not-a-real-flight";
+        msg_stream<<G.cli.callsign;
         msg_stream<<","<<msg_num;
         msg_stream<<","<<nmea.utc;
         msg_stream<<","<<nmea.lat<<","<<nmea.lon<<","<<nmea.alt;
@@ -182,35 +216,14 @@ int main1(int argc, char** argv)
 
     close(uBlox_i2c_fd);
 	close(radio_fd);
-	gpioWrite (GPIOPIN_MTX2_EN_gpio, 0);
+	gpioWrite (G.cli.hw_pin_radio_on, 0);
 	gpioTerminate();
 
     return 0;
 }
 
-int test_ssdv(int argc, char** argv)
-{
-	using namespace std;
-
-	string fname(argv[1]);
-
-	ssdv_t ssdv_data;
-	const size_t num_tiles = ssdv_data.load_file(fname);
-	cout<<"num_tiles: "<<num_tiles<<endl;
-
-	while( ssdv_data.size() )
-	{
-		const ssdv_t::tile_t tile = ssdv_data.next_tile();
-		string data(tile.data(), sizeof(tile));
-		cout<<data<<endl;
-	}
-
-	return 0;
-
-}
 
 int main(int argc, char** argv)
 {
-	// return test_ssdv(argc, argv);
 	return main1(argc, argv);
 }
