@@ -1,7 +1,10 @@
 #pragma once
 
 #include <string>
-#include "../mtx2/mtx2.h"
+#include <atomic>
+
+#include "mtx2/mtx2.h"
+#include "nmea/nmea.h"
 
 // global options - singleton
 
@@ -24,6 +27,8 @@ public:
         std::string     callsign;
         float   freqMHz = 0; //MegaHertz
         baud_t  baud = baud_t::kInvalid;
+        std::string     ssdv_image; // ssdv encoded image path
+
 
         // hardware config
         int             hw_pin_radio_on = 0;    // gpio numbered pin for radio enable. current board: 22
@@ -32,6 +37,7 @@ public:
     };
 
     cli_t cli;
+    std::atomic<nmea_t> nmea; // GPS data
 
     std::string str() const;
 

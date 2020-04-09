@@ -21,7 +21,7 @@ void CLI(int ac, char* av[])
             ("callsign",po::value<string>(),    "callsign")
             ("freq",	po::value<float>(),     "frequency in MHz")
             ("baud",	po::value<int>(),       "baud: 50, 150, 200, 300, 600, 1200")
-            ("ssdv",	po::value<string>(),    "SSDV encoded image")
+            ("ssdv",	po::value<string>(),    "ssdv encoded image path")
             ("hw_pin_radio_on",	po::value<int>(),       "gpio numbered pin for radio enable. current board: 22")
             ("hw_radio_serial",	po::value<string>(),    "serial device for MTX2 radio. for rPI4: /dev/serial0")
             ("hw_ublox_device",	po::value<string>(),    "I2C device for uBLOX. for rPI4: /dev/i2c-7")
@@ -84,6 +84,10 @@ void CLI(int ac, char* av[])
         if (vm.count("baud"))
 		{
             GLOB::get().cli.baud = baud_t_from_int(vm["baud"].as<int>());
+		}
+        if (vm.count("ssdv"))
+		{
+            GLOB::get().cli.ssdv_image = vm["ssdv"].as<string>();
 		}
     }
 	catch(exception& e)

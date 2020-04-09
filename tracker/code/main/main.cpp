@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 
 #include "pigpio.h"
 
@@ -19,8 +20,7 @@
 #include "GLOB.h"
 
 
-int radio_fd = 0;
-
+bool G_RUN = true;
 
 char _hex(char Character)
 {
@@ -59,10 +59,13 @@ std::string CRC(std::string i_str)
 
 void CTRL_C(int sig)
 {
-	gpioWrite(GLOB::get().cli.hw_pin_radio_on, 0);
-	close(radio_fd);
-	gpioTerminate();
-	exit(0);
+	std::cout<<"CTRL+C"<<std::endl;
+	// gpioWrite(GLOB::get().cli.hw_pin_radio_on, 0);
+	// close(radio_fd);
+	// gpioTerminate();
+	G_RUN = false;
+
+	// exit(0);
 }
 
 
@@ -105,9 +108,6 @@ int main1(int argc, char** argv)
 
 	cout<<G.str()<<endl;
 
-	signal(SIGINT, CTRL_C);
-	signal(SIGTERM, CTRL_C);
-
 	system("sudo modprobe w1-gpio");
 
 	if (gpioInitialise() < 0)
@@ -116,22 +116,27 @@ int main1(int argc, char** argv)
 		return 1;
 	}
 
+	// register this after gpioInitialise()
+	signal(SIGINT, CTRL_C);
+	signal(SIGTERM, CTRL_C);
+
     // RADIO
     //
 	gpioSetPullUpDown( G.cli.hw_pin_radio_on, PI_PUD_DOWN );
 	gpioSetMode( G.cli.hw_pin_radio_on, PI_OUTPUT );
 	gpioWrite ( G.cli.hw_pin_radio_on, 1 );
 	mtx2_set_frequency( G.cli.hw_pin_radio_on, G.cli.freqMHz );
-	radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
+	const int radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
     if (radio_fd < 1)
 	{
 		cerr<<"Failed opening radio UART "<<G.cli.hw_radio_serial<<endl;
 		return 1;
 	}
 
-    // uBLOX I2C
+
+    // uBLOX I2C start and config
     //
-    int uBlox_i2c_fd = uBLOX_i2c_open( G.cli.hw_ublox_device, 0x42 );
+    const int uBlox_i2c_fd = uBLOX_i2c_open( G.cli.hw_ublox_device, 0x42 );
 	if (!uBlox_i2c_fd)
 	{
 		cerr<<"Failed opening I2C "<<G.cli.hw_ublox_device<<" 0x42"<<endl;
@@ -148,6 +153,26 @@ int main1(int argc, char** argv)
         cout << "Retry Setting uBLOX Airborne1G Model" << endl;
 	sleep(1);
 
+
+	// uBLOX thread
+	//
+	std::thread ublox_thread( [uBlox_i2c_fd]() {
+		nmea_t nmea; // parsed GPS data
+		while(G_RUN) {
+			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
+			const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
+			cout<<nmea_str<<endl;
+			if( !NMEA_msg_checksum_ok(nmea_str) )
+			{
+				cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
+				continue;
+			}
+			NMEA_parse( nmea_str.c_str(), nmea );
+			GLOB::get().nmea = nmea; //update nmea with this message info
+		}
+	});
+
+
     // DS18B20 temp sensor
     //
     const string ds18b20_device = find_ds18b20_device();
@@ -159,41 +184,33 @@ int main1(int argc, char** argv)
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
 
-    nmea_t nmea; // parsed GPS data
+	nmea_t valid_nmea;
 	ssdv_t ssdv_data;
 	int msg_num = 0;
-	while(true)
+	while(G_RUN)
 	{
-		msg_num++;
-
-        // gps data
-		//
-		const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
-		const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
-		// cout<<nmea_str<<endl;
-        if( !NMEA_msg_checksum_ok(nmea_str) )
-        {
-            cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
-            continue;
-        }
-
-		NMEA_parse( nmea_str.c_str(), nmea );
-		const bool gps_fix_valid = nmea.fix_status == nmea_t::fix_status_t::kValid;
+		++msg_num;
 
         // ds18b20
         //
         const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
 
+		nmea_t current_nmea = G.nmea;
+		const bool gps_fix_valid =
+					current_nmea.fix_status  == nmea_t::fix_status_t::kValid
+				&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
+		if(gps_fix_valid)
+			valid_nmea = current_nmea;
+
 		// telemetry message
 		//
         stringstream  msg_stream;
-        // msg_stream<<nmea;
         msg_stream<<G.cli.callsign;
         msg_stream<<","<<msg_num;
-        msg_stream<<","<<nmea.utc;
-        msg_stream<<","<<nmea.lat<<","<<nmea.lon<<","<<nmea.alt;
-		msg_stream<<","<<nmea.sats<<","<<gps_fix_valid;
-        // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<nmea.alt; // example NMEA format
+        msg_stream<<","<<valid_nmea.utc;
+        msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
+		msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
+        // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<valid_nmea.alt; // example NMEA format
         msg_stream<<","<<setprecision(1)<<fixed<<temperature_cels;
 
 		const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
@@ -205,8 +222,8 @@ int main1(int argc, char** argv)
 
 		// SSDV image
 		//
-		if( argc > 1 && !ssdv_data.size() )
-			ssdv_data.load_file(argv[1]);
+		if( G.cli.ssdv_image.size() && !ssdv_data.size() )
+			cout<<"SSDV loaded "<<ssdv_data.load_file( G.cli.ssdv_image )<<" tiles"<<endl;
 		if( ssdv_data.size() )
 		{
 			const ssdv_t::tile_t tile = ssdv_data.next_tile();
@@ -214,6 +231,7 @@ int main1(int argc, char** argv)
 		}
 	}
 
+	ublox_thread.join();
     close(uBlox_i2c_fd);
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
