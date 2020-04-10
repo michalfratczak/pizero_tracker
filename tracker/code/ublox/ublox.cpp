@@ -153,4 +153,3 @@ std::string vec2str(std::vector<char> v)
 	delete [] buff;
 	return res;
 }
-

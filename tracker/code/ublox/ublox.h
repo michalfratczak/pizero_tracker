@@ -20,4 +20,3 @@ std::vector<char> uBLOX_read_msg(int fd, int usec_sleep = 3e5);
 bool uBLOX_write_msg_ack(int fd, uint8_t* p_msg, size_t msg_sz, const size_t wait = 10);
 
 std::string vec2str(std::vector<char> v);
-

@@ -31,4 +31,3 @@ void UBX_MAKE_PACKET_NAK(const uint8_t i_class, const uint8_t i_id, uint8_t* o_c
 bool UBX_PACKET_EQ(uint8_t* i_data, const uint8_t* p_ref, const size_t ref_sz);
 
 bool UBX_PACKET_EQ(const std::vector<char>& i_data, const uint8_t* p_ref, const size_t ref_sz);
-

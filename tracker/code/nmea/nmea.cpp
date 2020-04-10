@@ -4,6 +4,7 @@
 #include <math.h>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 
 namespace
@@ -236,37 +237,39 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 }
 
 
-std::ostream& operator<<(std::ostream& s, const nmea_t& nmea)
+std::string nmea_t::str() const
 {
-	std::string ws(" ");
-	s<<"utc:"<<nmea.utc<<ws;
+	std::stringstream s;
+	std::string ws(",");
 
-	s<<"lat:"<<nmea.lat<<ws;
-	s<<"lon:"<<nmea.lon<<ws;
-	s<<"alt:"<<nmea.alt<<ws;
+	s<<"utc:"<<utc<<ws;
 
-	s<<"speed_over_ground_mps:"<<nmea.speed_over_ground_mps<<ws;
-	s<<"course_over_ground_deg:"<<nmea.course_over_ground_deg<<ws;
+	s<<"lat:"<<lat<<ws;
+	s<<"lon:"<<lon<<ws;
+	s<<"alt:"<<alt<<ws;
 
-	s<<"sats:"<<nmea.sats<<ws;
+	s<<"speed_over_ground_mps:"<<speed_over_ground_mps<<ws;
+	s<<"course_over_ground_deg:"<<course_over_ground_deg<<ws;
 
-	if(nmea.fix_status == nmea_t::fix_status_t::kValid)
+	s<<"sats:"<<sats<<ws;
+
+	if(fix_status == nmea_t::fix_status_t::kValid)
 		s<<"VALID"<<ws;
-	else if(nmea.fix_status == nmea_t::fix_status_t::kInvalid)
+	else if(fix_status == nmea_t::fix_status_t::kInvalid)
 		s<<"INVALID"<<ws;
 
-	if( nmea.fix_quality == nmea_t::fix_quality_t::kNoFix )
-		s<<"Q:kNoFix"<<ws;
-	else if( nmea.fix_quality == nmea_t::fix_quality_t::kAutonomous )
-		s<<"Q:kAutonomous"<<ws;
-	else if( nmea.fix_quality == nmea_t::fix_quality_t::kDifferential )
-		s<<"Q:kDifferential"<<ws;
-	else if( nmea.fix_quality == nmea_t::fix_quality_t::kRtkFixed )
-		s<<"Q:kRtkFixed"<<ws;
-	else if( nmea.fix_quality == nmea_t::fix_quality_t::kRtkFloat )
-		s<<"Q:kRtkFloat"<<ws;
-	else if( nmea.fix_quality == nmea_t::fix_quality_t::kEstimated )
-		s<<"Q:kEstimated"<<ws;
+	if( fix_quality == nmea_t::fix_quality_t::kNoFix )
+		s<<"Q:kNoFix";
+	else if( fix_quality == nmea_t::fix_quality_t::kAutonomous )
+		s<<"Q:kAutonomous";
+	else if( fix_quality == nmea_t::fix_quality_t::kDifferential )
+		s<<"Q:kDifferential";
+	else if( fix_quality == nmea_t::fix_quality_t::kRtkFixed )
+		s<<"Q:kRtkFixed";
+	else if( fix_quality == nmea_t::fix_quality_t::kRtkFloat )
+		s<<"Q:kRtkFloat";
+	else if( fix_quality == nmea_t::fix_quality_t::kEstimated )
+		s<<"Q:kEstimated";
 
-	return s;
+	return s.str();
 }

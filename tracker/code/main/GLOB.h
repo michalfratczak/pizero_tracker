@@ -15,6 +15,9 @@ private:
     GLOB( const GLOB& ) = delete; // non construction-copyable
     GLOB& operator=( const GLOB& ) = delete; // non copyable
 
+    std::atomic<nmea_t> nmea; // GPS data
+
+
 public:
     static GLOB& get()
     {
@@ -37,8 +40,9 @@ public:
     };
 
     cli_t cli;
-    std::atomic<nmea_t> nmea; // GPS data
 
+    nmea_t nmea_get() { nmea_t ret = get().nmea; return ret; }
+    void   nmea_set(const nmea_t& in_nmea) { get().nmea = in_nmea; }
     std::string str() const;
 
 };

@@ -151,4 +151,3 @@ bool UBX_PACKET_EQ(const std::vector<char>& i_data, const uint8_t* p_ref, const 
 		return false;
 	return UBX_PACKET_EQ( (uint8_t*) i_data.data(), p_ref, ref_sz );
 }
-

@@ -33,6 +33,9 @@ public:
 		kEstimated = 6
 	};
 	fix_quality_t fix_quality = fix_quality_t::kNoFix;
+
+	std::string str() const;
+
 };
 
 
@@ -56,5 +59,3 @@ std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz);
 std::string NMEA_get_last_msg(const std::string& msg);
 
 bool NMEA_parse(const char *Buffer, nmea_t& o_nmea);
-
-std::ostream& operator<<(std::ostream& s, const nmea_t& nmea);

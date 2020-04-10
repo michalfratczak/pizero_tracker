@@ -36,5 +36,4 @@ int main()
     else
         cout<<"nmea msg not found"<<endl;
 
-
 }

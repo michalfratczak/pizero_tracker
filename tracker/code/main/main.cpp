@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "pigpio.h"
+#include <zmq.hpp>
 
 #include "mtx2/mtx2.h"
 #include "nmea/nmea.h"
@@ -168,7 +169,7 @@ int main1(int argc, char** argv)
 				continue;
 			}
 			NMEA_parse( nmea_str.c_str(), nmea );
-			GLOB::get().nmea = nmea; //update nmea with this message info
+			GLOB::get().nmea_set(nmea); //update nmea with this message info
 		}
 	});
 
@@ -184,6 +185,32 @@ int main1(int argc, char** argv)
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
 
+	// ZeroMQ server
+	zmq::context_t zmq_context(1);
+    zmq::socket_t zmq_socket(zmq_context, ZMQ_REP);
+    zmq_socket.bind ( string("tcp://*:6666").c_str() );
+	std::thread zmq_thread( [&zmq_socket]() {
+		while(G_RUN) {
+			zmq::message_t msg;
+			zmq_socket.recv(msg);
+			string msg_str( (char*)msg.data(), msg.size() );
+			std::cout<<"ZMQ msg: "<<msg_str<<std::endl;
+			if(msg_str == "nmea") {
+				nmea_t nmea = GLOB::get().nmea_get();
+				string nmea_str( nmea.str() );
+				zmq::message_t reply( nmea_str.size() );
+				memcpy( (void*) reply.data(), nmea_str.c_str(), nmea_str.size() );
+				zmq_socket.send(reply);
+			}
+			else {
+				zmq::message_t reply( 7 );
+				memcpy( (void*) reply.data(), "UNKNOWN", 7 );
+				zmq_socket.send(reply);
+			}
+		}
+	});
+
+
 	nmea_t valid_nmea;
 	ssdv_t ssdv_data;
 	int msg_num = 0;
@@ -195,7 +222,7 @@ int main1(int argc, char** argv)
         //
         const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
 
-		nmea_t current_nmea = G.nmea;
+		nmea_t current_nmea = G.nmea_get();
 		const bool gps_fix_valid =
 					current_nmea.fix_status  == nmea_t::fix_status_t::kValid
 				&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;

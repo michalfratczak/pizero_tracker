@@ -1,8 +1,11 @@
 
-
 set ( Boost_USE_STATIC_LIBS ON )
 find_package(Boost REQUIRED COMPONENTS program_options )
 include_directories( ${Boost_INCLUDE_DIRS} )
+
+# https://github.com/zeromq/cppzmq/
+#find cppzmq wrapper, installed by make of cppzmq
+find_package(cppzmq)
 
 set (tracker_src
 	GLOB.h GLOB.cpp
@@ -20,4 +23,4 @@ include_directories( ${CMAKE_SOURCE_DIR} )
 
 add_executable( tracker ${tracker_src})
 
-target_link_libraries( tracker pthread atomic pigpio ${Boost_LIBRARIES} )
+target_link_libraries( tracker pthread atomic pigpio cppzmq ${Boost_LIBRARIES} )
