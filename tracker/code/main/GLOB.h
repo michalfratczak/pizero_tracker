@@ -10,13 +10,13 @@
 
 class GLOB
 {
+
 private:
     GLOB() {};
     GLOB( const GLOB& ) = delete; // non construction-copyable
     GLOB& operator=( const GLOB& ) = delete; // non copyable
 
     std::atomic<nmea_t> nmea; // GPS data
-
 
 public:
     static GLOB& get()
@@ -38,8 +38,10 @@ public:
         std::string     hw_radio_serial;        // serial device for MTX2 radio. for rPI4: /dev/serial0
         std::string     hw_ublox_device;        // I2C device for uBLOX. for rPI4: /dev/i2c-7
     };
-
     cli_t cli;
+
+    // sensors
+    std::atomic<float>  temperature{0};
 
     nmea_t nmea_get() { nmea_t ret = get().nmea; return ret; }
     void   nmea_set(const nmea_t& in_nmea) { get().nmea = in_nmea; }

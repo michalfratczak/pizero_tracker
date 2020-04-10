@@ -12,7 +12,7 @@ public:
     using tile_t = std::array<char, 256>;
     bool size() const   { return tiles_que_.size(); }
     size_t load_file(const std::string file_path);
-    tile_t next_tile();
+    tile_t next_tile(); // pop tile from que and return
 
 private:
     std::deque<tile_t>  tiles_que_;

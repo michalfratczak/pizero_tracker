@@ -21,7 +21,8 @@
 #include "GLOB.h"
 
 
-bool G_RUN = true;
+bool G_RUN = true; // keep threads running
+
 
 char _hex(char Character)
 {
@@ -29,6 +30,7 @@ char _hex(char Character)
 	return _hexTable[int(Character)];
 }
 
+// UKHAS Sentence CRC
 std::string CRC(std::string i_str)
 {
 	using std::string;
@@ -58,15 +60,33 @@ std::string CRC(std::string i_str)
 }
 
 
+zmq::message_t make_zmq_reply(const std::string& i_msg_str)
+{
+	if(i_msg_str == "nmea")	{
+		nmea_t nmea = GLOB::get().nmea_get();
+		std::string reply_str( nmea.str() );
+		zmq::message_t reply( reply_str.size() );
+		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
+		return reply;
+	}
+	else if(i_msg_str == "temp")	{
+		std::string reply_str = std::to_string( GLOB::get().temperature );
+		zmq::message_t reply( reply_str.size() );
+		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
+		return reply;
+	}
+	else {
+		zmq::message_t reply( 7 );
+		memcpy( (void*) reply.data(), "UNKNOWN", 7 );
+		return reply;
+	}
+}
+
+
 void CTRL_C(int sig)
 {
 	std::cout<<"CTRL+C"<<std::endl;
-	// gpioWrite(GLOB::get().cli.hw_pin_radio_on, 0);
-	// close(radio_fd);
-	// gpioTerminate();
 	G_RUN = false;
-
-	// exit(0);
 }
 
 
@@ -74,8 +94,13 @@ int main1(int argc, char** argv)
 {
     using namespace std;
 
-	CLI(argc, argv); // command line interface
+	// command line interface
+	CLI(argc, argv);
+
+	// globals
+	// G.cli is command line interface
 	auto& G = GLOB::get();
+	cout<<G.str()<<endl;
 
 	if( !G.cli.callsign.size() ) {
 		cerr<<"ERROR:\n\tNo Callsign."<<endl;
@@ -107,7 +132,6 @@ int main1(int argc, char** argv)
 		return 1;
 	}
 
-	cout<<G.str()<<endl;
 
 	system("sudo modprobe w1-gpio");
 
@@ -123,9 +147,9 @@ int main1(int argc, char** argv)
 
     // RADIO
     //
-	gpioSetPullUpDown( G.cli.hw_pin_radio_on, PI_PUD_DOWN );
-	gpioSetMode( G.cli.hw_pin_radio_on, PI_OUTPUT );
-	gpioWrite ( G.cli.hw_pin_radio_on, 1 );
+	gpioSetPullUpDown( 	G.cli.hw_pin_radio_on, PI_PUD_DOWN );
+	gpioSetMode( 		G.cli.hw_pin_radio_on, PI_OUTPUT );
+	gpioWrite ( 		G.cli.hw_pin_radio_on, 1 );
 	mtx2_set_frequency( G.cli.hw_pin_radio_on, G.cli.freqMHz );
 	const int radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
     if (radio_fd < 1)
@@ -158,7 +182,6 @@ int main1(int argc, char** argv)
 	// uBLOX thread
 	//
 	std::thread ublox_thread( [uBlox_i2c_fd]() {
-		nmea_t nmea; // parsed GPS data
 		while(G_RUN) {
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
 			const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
@@ -168,8 +191,9 @@ int main1(int argc, char** argv)
 				cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
 				continue;
 			}
-			NMEA_parse( nmea_str.c_str(), nmea );
-			GLOB::get().nmea_set(nmea); //update nmea with this message info
+			nmea_t nmea = GLOB::get().nmea_get();
+			NMEA_parse( nmea_str.c_str(), nmea ); // nmea fields that were not altered by GGA/RMC will remain unmodified
+			GLOB::get().nmea_set(nmea); //update global nmea
 		}
 	});
 
@@ -195,18 +219,7 @@ int main1(int argc, char** argv)
 			zmq_socket.recv(msg);
 			string msg_str( (char*)msg.data(), msg.size() );
 			std::cout<<"ZMQ msg: "<<msg_str<<std::endl;
-			if(msg_str == "nmea") {
-				nmea_t nmea = GLOB::get().nmea_get();
-				string nmea_str( nmea.str() );
-				zmq::message_t reply( nmea_str.size() );
-				memcpy( (void*) reply.data(), nmea_str.c_str(), nmea_str.size() );
-				zmq_socket.send(reply);
-			}
-			else {
-				zmq::message_t reply( 7 );
-				memcpy( (void*) reply.data(), "UNKNOWN", 7 );
-				zmq_socket.send(reply);
-			}
+			zmq_socket.send( make_zmq_reply(msg_str) );
 		}
 	});
 
@@ -220,7 +233,7 @@ int main1(int argc, char** argv)
 
         // ds18b20
         //
-        const float temperature_cels = read_temp_from_ds18b20(ds18b20_device);
+        GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
 
 		nmea_t current_nmea = G.nmea_get();
 		const bool gps_fix_valid =
@@ -238,7 +251,7 @@ int main1(int argc, char** argv)
         msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 		msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
         // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<valid_nmea.alt; // example NMEA format
-        msg_stream<<","<<setprecision(1)<<fixed<<temperature_cels;
+        msg_stream<<","<<setprecision(1)<<fixed<<GLOB::get().temperature;
 
 		const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
         cout<<msg_and_crc<<endl;
@@ -255,8 +268,10 @@ int main1(int argc, char** argv)
 		{
 			const ssdv_t::tile_t tile = ssdv_data.next_tile();
 			// delete image after send
-			if(!ssdv_data.size())
+			if(!ssdv_data.size()) {
+				cout<<(string("rm -f ") + G.cli.ssdv_image)<<endl;
 				system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
+			}
 			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}

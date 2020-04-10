@@ -4,6 +4,7 @@
 #include <string>
 
 
+// keep data parsed from GGA __and__ RMC messages
 class nmea_t
 {
 public:
@@ -58,4 +59,7 @@ bool NMEA_get_last_msg(const char *buff, const size_t buff_sz, size_t& in, size_
 std::string NMEA_get_last_msg(const char *buff, const size_t buff_sz);
 std::string NMEA_get_last_msg(const std::string& msg);
 
+// parse NMEA string for GGA __and__ RMC messages
+// update o_nmea
+// !! o_nmea fields that were not parsed by NMEA command will remain unmodified
 bool NMEA_parse(const char *Buffer, nmea_t& o_nmea);
