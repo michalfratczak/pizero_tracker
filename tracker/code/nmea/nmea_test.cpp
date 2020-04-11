@@ -36,4 +36,17 @@ int main()
     else
         cout<<"nmea msg not found"<<endl;
 
+    cout<<"\n\nnmea_t copy test"<<endl;
+    nmea_t A, B;
+    A.utc[0] = '1';
+    A.utc[1] = '2';
+    A.utc[2] = '3';
+    A.utc[3] = '4';
+    A.utc[4] = '5';
+    A.utc[5] = '6';
+    cout<<A.str()<<endl;
+    cout<<B.str()<<endl;
+    B = A;
+    cout<<B.str()<<endl;
+
 }

@@ -36,7 +36,6 @@ public:
 	fix_quality_t fix_quality = fix_quality_t::kNoFix;
 
 	std::string str() const;
-
 };
 
 

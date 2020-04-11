@@ -151,21 +151,21 @@ int main1(int argc, char** argv)
 	gpioSetMode( 		G.cli.hw_pin_radio_on, PI_OUTPUT );
 	gpioWrite ( 		G.cli.hw_pin_radio_on, 1 );
 	mtx2_set_frequency( G.cli.hw_pin_radio_on, G.cli.freqMHz );
-	const int radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
-    if (radio_fd < 1)
-	{
-		cerr<<"Failed opening radio UART "<<G.cli.hw_radio_serial<<endl;
-		return 1;
+	int radio_fd = 0;
+	while(radio_fd<1) {
+		cout<<"Opening Radio UART "<<G.cli.hw_radio_serial<<endl;
+		radio_fd = mtx2_open( G.cli.hw_radio_serial, G.cli.baud );
+		sleep(3);
 	}
 
 
     // uBLOX I2C start and config
     //
-    const int uBlox_i2c_fd = uBLOX_i2c_open( G.cli.hw_ublox_device, 0x42 );
-	if (!uBlox_i2c_fd)
-	{
-		cerr<<"Failed opening I2C "<<G.cli.hw_ublox_device<<" 0x42"<<endl;
-		return 1;
+    int uBlox_i2c_fd = 0;
+	while(uBlox_i2c_fd<1) {
+		cout<<"Opening uBlox I2C "<<G.cli.hw_ublox_device<<endl;
+		uBlox_i2c_fd = uBLOX_i2c_open( G.cli.hw_ublox_device, 0x42 );
+		sleep(3);
 	}
 	write(uBlox_i2c_fd, UBX_CMD_EnableOutput_ACK_ACK, sizeof(UBX_CMD_EnableOutput_ACK_ACK));
 	write(uBlox_i2c_fd, UBX_CMD_EnableOutput_ACK_NAK, sizeof(UBX_CMD_EnableOutput_ACK_NAK));
@@ -252,6 +252,8 @@ int main1(int argc, char** argv)
 					&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
 			if(gps_fix_valid)
 				valid_nmea = current_nmea;
+			else
+				memcpy( valid_nmea.utc, current_nmea.utc, sizeof(current_nmea.utc) );
 
 			// telemetry message
 			//

@@ -100,8 +100,6 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 {
 	using namespace std;
 
-	// cout << "??? " << Buffer << endl;
-
 	float utc = 0;
 	int date = 0;
 
@@ -178,9 +176,14 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 			}
 			return true;
 		}
+		else if(scanned_positions > 0 && utc != 0)
+		{
+			sprintf( o_nmea.utc, "%06d", int(floor(utc)) );
+			return true;
+		}
 		else
 		{
-			// cerr<<"GGA scanf err"<<endl;
+			// cerr<<"GGA scanf err"<<endl; // probably not all fields in sentence
 			return false;
 		}
 
@@ -220,9 +223,14 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 			return true;
 		}
+		else if(scanned_positions > 0 && utc != 0)
+		{
+			sprintf( o_nmea.utc, "%06d", int(floor(utc)) );
+			return true;
+		}
 		else
 		{
-			// cerr<<"RMC scanf err"<<endl;
+			// cerr<<"RMC scanf err"<<endl; // probably not all fields in sentence
 			return false;
 		}
 	} // RMC
