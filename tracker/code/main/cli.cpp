@@ -22,6 +22,7 @@ void CLI(int ac, char* av[])
             ("freq",	po::value<float>(),     "frequency in MHz")
             ("baud",	po::value<int>(),       "baud: 50, 150, 200, 300, 600, 1200")
             ("ssdv",	po::value<string>(),    "ssdv encoded image path")
+            ("msg_num",	po::value<int>(),       "number of telemetry sentences emitted between SSDV packets")
             ("hw_pin_radio_on",	po::value<int>(),       "gpio numbered pin for radio enable. current board: 22")
             ("hw_radio_serial",	po::value<string>(),    "serial device for MTX2 radio. for rPI4: /dev/serial0")
             ("hw_ublox_device",	po::value<string>(),    "I2C device for uBLOX. for rPI4: /dev/i2c-7")
@@ -68,6 +69,10 @@ void CLI(int ac, char* av[])
         if (vm.count("freq"))
 		{
 			GLOB::get().cli.freqMHz = vm["freq"].as<float>();
+		}
+        if (vm.count("msg_num"))
+		{
+			GLOB::get().cli.msg_num = vm["msg_num"].as<int>();
 		}
         if (vm.count("hw_pin_radio_on"))
         {

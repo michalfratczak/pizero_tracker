@@ -63,8 +63,7 @@ std::string CRC(std::string i_str)
 zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 {
 	if(i_msg_str == "nmea")	{
-		nmea_t nmea = GLOB::get().nmea_get();
-		std::string reply_str( nmea.str() );
+		const std::string reply_str( GLOB::get().nmea_get().str() );
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
@@ -216,71 +215,82 @@ int main1(int argc, char** argv)
 	std::thread zmq_thread( [&zmq_socket]() {
 		while(G_RUN) {
 			zmq::message_t msg;
-			zmq_socket.recv(msg);
+			auto res = zmq_socket.recv(msg); // using recv_result_t = std::optional<size_t>;
+			if(!res.has_value())
+				continue;
 			string msg_str( (char*)msg.data(), msg.size() );
 			std::cout<<"ZMQ msg: "<<msg_str<<std::endl;
-			zmq_socket.send( make_zmq_reply(msg_str) );
+			zmq_socket.send( make_zmq_reply(msg_str), zmq::send_flags::none );
 		}
 	});
 
 
+	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TEMEMETRY AND IMAGE
+	//
 	nmea_t valid_nmea;
 	ssdv_t ssdv_data;
-	int msg_num = 0;
+	int msg_id = 0;
 	while(G_RUN)
 	{
-		++msg_num;
+		for(int i=0; i<G.cli.msg_num; ++i)
+		{
+			++msg_id;
 
-        // ds18b20
-        //
-        GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
+			// ds18b20
+			//
+			GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
 
-		nmea_t current_nmea = G.nmea_get();
-		const bool gps_fix_valid =
-					current_nmea.fix_status  == nmea_t::fix_status_t::kValid
-				&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
-		if(gps_fix_valid)
-			valid_nmea = current_nmea;
+			nmea_t current_nmea = G.nmea_get();
+			const bool gps_fix_valid =
+						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
+					&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
+			if(gps_fix_valid)
+				valid_nmea = current_nmea;
 
-		// telemetry message
-		//
-        stringstream  msg_stream;
-        msg_stream<<G.cli.callsign;
-        msg_stream<<","<<msg_num;
-        msg_stream<<","<<valid_nmea.utc;
-        msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
-		msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
-        // msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<valid_nmea.alt; // example NMEA format
-        msg_stream<<","<<setprecision(1)<<fixed<<GLOB::get().temperature;
+			// telemetry message
+			//
+			stringstream  msg_stream;
+			msg_stream<<G.cli.callsign;
+			msg_stream<<","<<msg_id;
+			msg_stream<<","<<valid_nmea.utc;
+			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
+			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
+			// msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<valid_nmea.alt; // example NMEA format
+			msg_stream<<","<<setprecision(1)<<fixed<<GLOB::get().temperature;
 
-		const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
-        cout<<msg_and_crc<<endl;
+			const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
+			cout<<msg_and_crc<<endl;
 
-		// emit telemetry msg RF
-		//
-		mtx2_write(radio_fd, msg_and_crc + '\n');
+			// emit telemetry msg RF
+			//
+			mtx2_write(radio_fd, msg_and_crc + '\n');
+		}
 
-		// SSDV image
+		// send SSDV image next packet
 		//
 		if( G.cli.ssdv_image.size() && !ssdv_data.size() )
 			cout<<"SSDV loaded "<<ssdv_data.load_file( G.cli.ssdv_image )<<" tiles"<<endl;
 		if( ssdv_data.size() )
 		{
-			const ssdv_t::tile_t tile = ssdv_data.next_tile();
-			// delete image after send
-			if(!ssdv_data.size()) {
-				cout<<(string("rm -f ") + G.cli.ssdv_image)<<endl;
+			auto tile = ssdv_data.next_tile();
+			if(!ssdv_data.size())	// delete image after send
 				system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
-			}
 			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}
 
+	// RELEASE RESOURCES
+	//
+	cout<<"Closing uBlox"<<endl;
 	ublox_thread.join();
     close(uBlox_i2c_fd);
+	cout<<"Closing UART"<<endl;
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
+	cout<<"Closing gpio"<<endl;
 	gpioTerminate();
+	cout<<"Closing zmq"<<endl;
+	zmq_thread.join(); // will return after next received message, or stuck forever if no messages come in
 
     return 0;
 }

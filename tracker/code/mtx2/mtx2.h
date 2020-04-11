@@ -2,7 +2,8 @@
 
 #include <string>
 
-enum class baud_t {
+enum class baud_t : int
+{
 	kInvalid = 0,
 	k50 = 50,
 	k75 = 75,
