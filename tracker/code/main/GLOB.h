@@ -32,6 +32,7 @@ public:
         baud_t          baud = baud_t::kInvalid;
         std::string     ssdv_image;     // ssdv encoded image path
         int             msg_num = 1;    // number of telemetry sentences emitted between SSDV packets
+        int             port = 6666;    // zeroMQ server port
 
         // hardware config
         int             hw_pin_radio_on = 0;    // gpio numbered pin for radio enable. current board: 22

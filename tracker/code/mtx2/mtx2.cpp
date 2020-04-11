@@ -135,39 +135,3 @@ void mtx2_set_frequency(const int mtx2_enable_pin_gpio, const float freq_Mhz) //
 	}
 
 }
-
-
-int baud_t_to_int(const baud_t& baud)
-{
-	switch (baud)
-	{
-		case baud_t::k50: return 50;
-		case baud_t::k75: return 75;
-		case baud_t::k150: return 150;
-		case baud_t::k200: return 200;
-		case baud_t::k300: return 300;
-		case baud_t::k600: return 600;
-		case baud_t::k1200: return 1200;
-		case baud_t::k4800: return 4800;
-		case baud_t::k9600: return 9600;
-	}
-	return 0;
-}
-
-
-baud_t baud_t_from_int(const int baud)
-{
-	switch (baud)
-	{
-		case 50: return		baud_t::k50;
-		case 75: return		baud_t::k75;
-		case 150: return	baud_t::k150;
-		case 200: return	baud_t::k200;
-		case 300: return	baud_t::k300;
-		case 600: return	baud_t::k600;
-		case 1200: return	baud_t::k1200;
-		case 4800: return	baud_t::k4800;
-		case 9600: return	baud_t::k9600;
-	}
-	return baud_t::kInvalid;
-}

@@ -23,6 +23,3 @@ int mtx2_write(const int serial_file_descriptor, const char* msg, const size_t m
 int mtx2_write(const int serial_file_descriptor, const std::string& msg);
 
 void mtx2_set_frequency(const int mtx2_enable_pin, const float freq_Mhz); // 434.250
-
-int baud_t_to_int(const baud_t&);
-baud_t baud_t_from_int(const int);

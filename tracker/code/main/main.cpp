@@ -211,7 +211,7 @@ int main1(int argc, char** argv)
 	// ZeroMQ server
 	zmq::context_t zmq_context(1);
     zmq::socket_t zmq_socket(zmq_context, ZMQ_REP);
-    zmq_socket.bind ( string("tcp://*:6666").c_str() );
+    zmq_socket.bind ( string("tcp://*:" + to_string(G.cli.port)).c_str() );
 	std::thread zmq_thread( [&zmq_socket]() {
 		while(G_RUN) {
 			zmq::message_t msg;
