@@ -281,3 +281,15 @@ std::string nmea_t::str() const
 
 	return s.str();
 }
+
+
+// convert utc HHMMSS to seconds
+int nmea_t::seconds() const
+{
+	int H=0;
+	int M=0;
+	int S=0;
+	sscanf(utc, "%02d%02d%02d", &H, &M, &S);
+	const int total_seconds = S + 60*M + 60*60*H;
+	return total_seconds;
+}

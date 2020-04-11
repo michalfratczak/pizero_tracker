@@ -36,6 +36,8 @@ public:
 	fix_quality_t fix_quality = fix_quality_t::kNoFix;
 
 	std::string str() const;
+
+	int seconds() const;	// convert utc HHMMSS to seconds
 };
 
 

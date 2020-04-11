@@ -238,14 +238,13 @@ int main1(int argc, char** argv)
 	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TEMEMETRY AND IMAGE
 	//
 	nmea_t valid_nmea;
-	ssdv_t ssdv_data;
+	ssdv_t ssdv_tiles;
 	int msg_id = 0;
 	while(G_RUN)
 	{
-		for(int i=0; i<G.cli.msg_num; ++i)
+		int msg_num = 0;
+		while( msg_num++ < G.cli.msg_num )
 		{
-			++msg_id;
-
 			const nmea_t current_nmea = G.nmea_get();
 			const bool gps_fix_valid =
 						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
@@ -259,7 +258,7 @@ int main1(int argc, char** argv)
 			//
 			stringstream  msg_stream;
 			msg_stream<<G.cli.callsign;
-			msg_stream<<","<<msg_id;
+			msg_stream<<","<<msg_id++;
 			msg_stream<<","<<valid_nmea.utc;
 			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
@@ -271,20 +270,28 @@ int main1(int argc, char** argv)
 			// emit telemetry msg RF
 			//
 			mtx2_write(radio_fd, msg_and_crc + '\n');
+
+			// if no GPS fix, keep sending telemetry instead of SSDV
+			//
+			// for some reason this loop-restart does not work with for() loop
+			if( !gps_fix_valid )
+				msg_num = 0;
 		}
 
 		// send SSDV image next packet
 		//
-		if( G.cli.ssdv_image.size() && !ssdv_data.size() )
-			cout<<"SSDV loaded "<<ssdv_data.load_file( G.cli.ssdv_image )<<" tiles"<<endl;
-		if( ssdv_data.size() )
+		if( !ssdv_tiles.size() & G.cli.ssdv_image.size() )
+			cout<<"SSDV loaded "<<ssdv_tiles.load_file( G.cli.ssdv_image )<<" packets from disk."<<endl;
+		if( ssdv_tiles.size() )
 		{
-			auto tile = ssdv_data.next_tile();
-			if(!ssdv_data.size())	// delete image after send
+			auto tile = ssdv_tiles.next_tile();
+			if(!ssdv_tiles.size())	// delete image when done
 				system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
+			cout<<"SSDV"<<endl;
 			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}
+
 
 	// RELEASE RESOURCES
 	//
@@ -300,6 +307,7 @@ int main1(int argc, char** argv)
 	gpioTerminate();
 	cout<<"Closing zmq"<<endl;
 	zmq_thread.join(); // will return after next received message, or stuck forever if no messages come in
+
 
     return 0;
 }

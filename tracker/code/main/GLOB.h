@@ -31,7 +31,7 @@ public:
         float           freqMHz = 0;    //MegaHertz
         baud_t          baud = baud_t::kInvalid;
         std::string     ssdv_image;     // ssdv encoded image path
-        int             msg_num = 1;    // number of telemetry sentences emitted between SSDV packets
+        int             msg_num = 5;    // number of telemetry sentences emitted between SSDV packets
         int             port = 6666;    // zeroMQ server port
 
         // hardware config

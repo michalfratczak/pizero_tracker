@@ -49,4 +49,8 @@ int main()
     B = A;
     cout<<B.str()<<endl;
 
+    cout<<"\n\nnmea_t::seconds"<<endl;
+
+    cout<<A.seconds()<<endl;
+
 }
