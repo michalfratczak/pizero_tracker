@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <sstream>
 #include <thread>
+#include <chrono>
 
 #include "pigpio.h"
 #include <zmq.hpp>
@@ -207,6 +208,15 @@ int main1(int argc, char** argv)
     }
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
+	// ALL SENSORS THREAD
+	//
+	std::thread sensors_thread( [ds18b20_device]() {
+		while(G_RUN) {
+			GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
+			std::this_thread::sleep_for( std::chrono::seconds(5) );
+		}
+	});
+
 
 	// ZeroMQ server
 	zmq::context_t zmq_context(1);
@@ -236,10 +246,6 @@ int main1(int argc, char** argv)
 		{
 			++msg_id;
 
-			// ds18b20
-			//
-			GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
-
 			nmea_t current_nmea = G.nmea_get();
 			const bool gps_fix_valid =
 						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
@@ -255,7 +261,6 @@ int main1(int argc, char** argv)
 			msg_stream<<","<<valid_nmea.utc;
 			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
-			// msg_stream<<","<<"05231.4567"<<","<<"2117.8412"<<","<<valid_nmea.alt; // example NMEA format
 			msg_stream<<","<<setprecision(1)<<fixed<<GLOB::get().temperature;
 
 			const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
@@ -281,10 +286,12 @@ int main1(int argc, char** argv)
 
 	// RELEASE RESOURCES
 	//
-	cout<<"Closing uBlox"<<endl;
+	cout<<"Closing sensors thread"<<endl;
+	sensors_thread.join();
+	cout<<"Closing uBlox I2C"<<endl;
 	ublox_thread.join();
     close(uBlox_i2c_fd);
-	cout<<"Closing UART"<<endl;
+	cout<<"Closing UART Radio"<<endl;
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
 	cout<<"Closing gpio"<<endl;
