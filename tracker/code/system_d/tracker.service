@@ -1,0 +1,20 @@
+
+# cp ./tracker.service /etc/systemd/system/
+# systemctl enable tracker.service
+# systemctl start tracker.service
+# journalctl -u tracker
+
+[Unit]
+Description=piZero tracker
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/boot/tracker --config /boot/config.txt
+
+[Install]
+WantedBy=multi-user.target
