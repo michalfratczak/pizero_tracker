@@ -246,7 +246,7 @@ int main1(int argc, char** argv)
 		{
 			++msg_id;
 
-			nmea_t current_nmea = G.nmea_get();
+			const nmea_t current_nmea = G.nmea_get();
 			const bool gps_fix_valid =
 						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
 					&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;

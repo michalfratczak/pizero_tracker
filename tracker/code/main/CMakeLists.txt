@@ -23,4 +23,4 @@ include_directories( ${CMAKE_SOURCE_DIR} )
 
 add_executable( tracker ${tracker_src})
 
-target_link_libraries( tracker pthread atomic pigpio cppzmq ${Boost_LIBRARIES} )
+target_link_libraries( tracker pthread atomic pigpio cppzmq-static ${Boost_LIBRARIES} )
