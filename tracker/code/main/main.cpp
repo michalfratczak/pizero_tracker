@@ -21,6 +21,10 @@
 #include "cli.h"
 #include "GLOB.h"
 
+const char* C_RED = 		"\033[1;31m";
+const char* C_GREEN = 		"\033[1;32m";
+const char* C_MAGENTA = 	"\033[1;35m";
+const char* C_OFF =   		"\033[0m";
 
 bool G_RUN = true; // keep threads running
 
@@ -63,14 +67,15 @@ std::string CRC(std::string i_str)
 
 zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 {
+	auto& G = GLOB::get();
 	if(i_msg_str == "nmea")	{
-		const std::string reply_str( GLOB::get().nmea_get().str() );
+		const std::string reply_str( G.nmea_get().str() );
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
 	}
 	else if(i_msg_str == "temp")	{
-		std::string reply_str = std::to_string( GLOB::get().temperature );
+		std::string reply_str = std::to_string( G.temperature );
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
@@ -103,32 +108,32 @@ int main1(int argc, char** argv)
 	cout<<G.str()<<endl;
 
 	if( !G.cli.callsign.size() ) {
-		cerr<<"ERROR:\n\tNo Callsign."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo Callsign."<<C_OFF<<endl;
 		return 1;
 	}
 
 	if( !G.cli.freqMHz ) {
-		cerr<<"ERROR:\n\tNo frequency."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo frequency."<<C_OFF<<endl;
 		return 1;
 	}
 
 	if(G.cli.baud == baud_t::kInvalid) {
-		cerr<<"ERROR:\n\tNo baud."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo baud."<<C_OFF<<endl;
 		return 1;
 	}
 
 	if( !G.cli.hw_pin_radio_on ) {
-		cerr<<"ERROR:\n\tNo hw_pin_radio_on."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo hw_pin_radio_on."<<C_OFF<<endl;
 		return 1;
 	}
 
 	if( !G.cli.hw_radio_serial.size() ) {
-		cerr<<"ERROR:\n\tNo hw_radio_serial."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo hw_radio_serial."<<C_OFF<<endl;
 		return 1;
 	}
 
 	if( !G.cli.hw_ublox_device.size() ) {
-		cerr<<"ERROR:\n\tNo hw_ublox_device."<<endl;
+		cerr<<C_RED<<"ERROR:\n\tNo hw_ublox_device."<<C_OFF<<endl;
 		return 1;
 	}
 
@@ -137,7 +142,7 @@ int main1(int argc, char** argv)
 
 	if (gpioInitialise() < 0)
 	{
-		std::cerr<<"pigpio initialisation failed\n";
+		cerr<<C_RED<<"pigpio initialisation failed"<<C_OFF<<endl;
 		return 1;
 	}
 
@@ -175,7 +180,7 @@ int main1(int argc, char** argv)
 	uBLOX_write_msg_ack( uBlox_i2c_fd, UBX_CMD_GSA_OFF, sizeof(UBX_CMD_GSA_OFF) );
 	uBLOX_write_msg_ack( uBlox_i2c_fd, UBX_CMD_VTG_OFF, sizeof(UBX_CMD_VTG_OFF) );
     while (!uBLOX_write_msg_ack(uBlox_i2c_fd, UBX_CMD_NAV5_Airbororne1G, sizeof(UBX_CMD_NAV5_Airbororne1G)))
-        cout << "Retry Setting uBLOX Airborne1G Model" << endl;
+        cout<<C_RED<<"Retry Setting uBLOX Airborne1G Model"<<C_OFF<<endl;
 	sleep(1);
 
 
@@ -185,10 +190,10 @@ int main1(int argc, char** argv)
 		while(G_RUN) {
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
 			const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
-			cout<<nmea_str<<endl;
+			cout<<nmea_str<<C_OFF<<endl;
 			if( !NMEA_msg_checksum_ok(nmea_str) )
 			{
-				cerr<<"NMEA Checksum Fail: "<<nmea_str<<endl;
+				cerr<<C_RED<<"NMEA Checksum Fail: "<<nmea_str<<C_OFF<<endl;
 				continue;
 			}
 			nmea_t nmea = GLOB::get().nmea_get();
@@ -203,7 +208,7 @@ int main1(int argc, char** argv)
     const string ds18b20_device = find_ds18b20_device();
     if(ds18b20_device == "")
     {
-		cerr << "Failed ds18b20_device "<<ds18b20_device<<endl;
+		cerr<<C_RED<<"Failed ds18b20_device "<<ds18b20_device<<C_OFF<<endl;
         return 1;
     }
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
@@ -213,7 +218,7 @@ int main1(int argc, char** argv)
 	std::thread sensors_thread( [ds18b20_device]() {
 		while(G_RUN) {
 			GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
-			std::this_thread::sleep_for( std::chrono::seconds(5) );
+			this_thread::sleep_for( chrono::seconds(5) );
 		}
 	});
 
@@ -229,7 +234,7 @@ int main1(int argc, char** argv)
 			if(!res.has_value())
 				continue;
 			string msg_str( (char*)msg.data(), msg.size() );
-			std::cout<<"ZMQ msg: "<<msg_str<<std::endl;
+			cout<<"ZMQ msg: "<<msg_str<<endl;
 			zmq_socket.send( make_zmq_reply(msg_str), zmq::send_flags::none );
 		}
 	});
@@ -262,10 +267,10 @@ int main1(int argc, char** argv)
 			msg_stream<<","<<valid_nmea.utc;
 			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
-			msg_stream<<","<<setprecision(1)<<fixed<<GLOB::get().temperature;
+			msg_stream<<","<<setprecision(1)<<fixed<<G.temperature;
 
 			const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
-			cout<<msg_and_crc<<endl;
+			cout<<C_GREEN<<msg_and_crc<<C_OFF<<endl;
 
 			// emit telemetry msg RF
 			//
