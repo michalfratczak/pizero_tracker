@@ -243,7 +243,7 @@ int main1(int argc, char** argv)
 	while(G_RUN)
 	{
 		int msg_num = 0;
-		while( msg_num++ < G.cli.msg_num )
+		while( G_RUN && msg_num++ < G.cli.msg_num )
 		{
 			const nmea_t current_nmea = G.nmea_get();
 			const bool gps_fix_valid =
