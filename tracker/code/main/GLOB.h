@@ -1,10 +1,13 @@
 #pragma once
 
 #include <string>
+#include <map>
 #include <atomic>
 
 #include "mtx2/mtx2.h"
 #include "nmea/nmea.h"
+#include "dynamics_t.h"
+
 
 // global options - singleton
 
@@ -17,6 +20,9 @@ private:
     GLOB& operator=( const GLOB& ) = delete; // non copyable
 
     std::atomic<nmea_t> nmea; // GPS data
+
+    // sensors dynamics
+    std::map<std::string, dynamics_t>    dynamics_; // index: value name (alt, temp1, etc.)
 
 public:
     static GLOB& get()
@@ -43,6 +49,10 @@ public:
 
     // sensors
     std::atomic<float>  temperature{0};
+
+    bool        dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value);
+    dynamics_t  dynamics_get(const std::string& name);
+
 
     nmea_t nmea_get() { nmea_t ret = get().nmea; return ret; }
     void   nmea_set(const nmea_t& in_nmea) { get().nmea = in_nmea; }

@@ -10,6 +10,7 @@ find_package(cppzmq)
 set (tracker_src
 	GLOB.h GLOB.cpp
 	cli.h cli.cpp
+	dynamics_t.h dynamics_t.cpp
 	ssdv_t.cpp
 	main.cpp
 	../mtx2/mtx2.cpp

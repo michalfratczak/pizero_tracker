@@ -1,6 +1,7 @@
 #include "GLOB.h"
 
 #include <sstream>
+#include <iostream>
 
 std::string GLOB::str() const
 {
@@ -17,4 +18,29 @@ std::string GLOB::str() const
     s<<"\thw_ublox_device="<<cli.hw_ublox_device<<"\n";
 
     return s.str();
+}
+
+
+bool GLOB::dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value)
+{
+    auto d = dynamics_.find(name);
+    if( d == dynamics_.end() )
+    {
+        dynamics_[name] = dynamics_t();
+        return dynamics_[name].add(timestamp, value);
+    }
+    else
+    {
+        return d->second.add(timestamp, value);
+    }
+
+}
+
+dynamics_t GLOB::dynamics_get(const std::string& name)
+{
+    auto d = dynamics_.find(name);
+    if( d == dynamics_.end() )
+        return dynamics_t(); // default, uninitialised
+    else
+        return d->second;
 }

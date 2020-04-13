@@ -16,6 +16,7 @@
 #include "ublox/ublox_cmds.h"
 #include "ublox/ublox.h"
 #include "ds18b20/ds18b20.h"
+#include "dynamics_t.h"
 
 #include "ssdv_t.h"
 #include "cli.h"
@@ -213,6 +214,7 @@ int main1(int argc, char** argv)
     }
     cout<<"ds18b20_device "<<ds18b20_device<<endl;
 
+
 	// ALL SENSORS THREAD
 	//
 	std::thread sensors_thread( [ds18b20_device]() {
@@ -250,20 +252,34 @@ int main1(int argc, char** argv)
 		int msg_num = 0;
 		while( G_RUN && msg_num++ < G.cli.msg_num )
 		{
+			++msg_id;
+
+
+			// GPS data
+			//
 			const nmea_t current_nmea = G.nmea_get();
 			const bool gps_fix_valid =
 						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
 					&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
 			if(gps_fix_valid)
 				valid_nmea = current_nmea;
-			else
+			else // at least use time
 				memcpy( valid_nmea.utc, current_nmea.utc, sizeof(current_nmea.utc) );
+
+
+			// dynamics
+			//
+			G.dynamics_add("alt", 			dynamics_t::utc2tp(valid_nmea.utc), valid_nmea.alt);
+			G.dynamics_add("temperature", 	dynamics_t::utc2tp(valid_nmea.utc), G.temperature);
+			cout<<C_MAGENTA<<"alt "<<G.dynamics_get("alt").dVdT()<<C_OFF<<endl;
+			cout<<C_MAGENTA<<"temperature "<<G.dynamics_get("temperature").dVdT()<<C_OFF<<endl;
+
 
 			// telemetry message
 			//
 			stringstream  msg_stream;
 			msg_stream<<G.cli.callsign;
-			msg_stream<<","<<msg_id++;
+			msg_stream<<","<<msg_id;
 			msg_stream<<","<<valid_nmea.utc;
 			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
@@ -283,6 +299,7 @@ int main1(int argc, char** argv)
 				msg_num = 0;
 		}
 
+
 		// send SSDV image next packet
 		//
 		if( !ssdv_tiles.size() & G.cli.ssdv_image.size() )
@@ -291,8 +308,15 @@ int main1(int argc, char** argv)
 		{
 			auto tile = ssdv_tiles.next_tile();
 			if(!ssdv_tiles.size())	// delete image when done
-				system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
-			cout<<"SSDV"<<endl;
+			{
+				try {
+					system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
+				}
+				catch(exception& e) {
+					cerr<<C_RED<<"Error deleting SSDV file.\n"<<e.what()<<C_OFF<<endl;
+				}
+			}
+			cout<<"Send SSDV"<<endl;
 			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}
