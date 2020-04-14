@@ -284,7 +284,7 @@ std::string nmea_t::str() const
 
 
 // convert utc HHMMSS to seconds
-int nmea_t::seconds() const
+int nmea_t::utc_as_seconds() const
 {
 	int H=0;
 	int M=0;

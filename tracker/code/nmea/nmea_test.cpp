@@ -51,6 +51,6 @@ int main()
 
     cout<<"\n\nnmea_t::seconds"<<endl;
 
-    cout<<A.seconds()<<endl;
+    cout<<A.utc_as_seconds()<<endl;
 
 }

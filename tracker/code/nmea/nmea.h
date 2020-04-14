@@ -37,7 +37,7 @@ public:
 
 	std::string str() const;
 
-	int seconds() const;	// convert utc HHMMSS to seconds
+	int utc_as_seconds() const;	// convert utc HHMMSS to seconds
 };
 
 
