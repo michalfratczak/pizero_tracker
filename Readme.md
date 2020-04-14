@@ -17,5 +17,7 @@ dtoverlay=i2c-gpio,i2c_gpio_sda=2,i2c_gpio_scl=3
 
 
 dependencies
+
 boost program_options
+
 https://github.com/zeromq/cppzmq/
