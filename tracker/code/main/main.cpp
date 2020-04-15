@@ -16,8 +16,6 @@
 #include "ublox/ublox_cmds.h"
 #include "ublox/ublox.h"
 #include "ds18b20/ds18b20.h"
-#include "dynamics_t.h"
-
 #include "ssdv_t.h"
 #include "cli.h"
 #include "GLOB.h"
@@ -197,8 +195,8 @@ int main1(int argc, char** argv)
 		while(G_RUN) {
 			// std::this_thread::sleep_for( std::chrono::seconds(5) );
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
-			const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
-			cout<<nmea_str<<C_OFF<<endl;
+			const string nmea_str = NMEA_get_last_msg(ublox_data.data(), ublox_data.size());
+			cout<<nmea_str<<endl;
 			if( !NMEA_msg_checksum_ok(nmea_str) ) {
 				cerr<<C_RED<<"NMEA Checksum Fail: "<<nmea_str<<C_OFF<<endl;
 				continue;
@@ -213,7 +211,6 @@ int main1(int argc, char** argv)
 				if(gps_fix_valid) {
 					GLOB::get().nmea_set(current_nmea);
 					GLOB::get().gps_fix_now();
-					// GLOB::get().dynamics_add("alt", dynamics_t::utc2tp(current_nmea.utc), current_nmea.alt);
 					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
 				}
 				else { // REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
@@ -267,7 +264,7 @@ int main1(int argc, char** argv)
 	});
 
 
-	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TEMEMETRY AND IMAGE
+	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TELEMETRY AND IMAGE
 	//
 	ssdv_t ssdv_tiles;
 	int msg_id = 0;
@@ -275,9 +272,9 @@ int main1(int argc, char** argv)
 	{
 		// print dynamics
 		cout<<C_MAGENTA<<"alt "<<G.dynamics_get("alt").dVdT()<<C_OFF<<endl;
-		cout<<C_MAGENTA<<"temperature "<<G.dynamics_get("temperature").dVdT()<<C_OFF<<endl;
+		cout<<C_MAGENTA<<"temp_int "<<G.dynamics_get("temp_int").dVdT()<<C_OFF<<endl;
 
-		// telemetry
+		// telemetry. G.cli.msg_num sentences before SSDV
 		//
 		for(int __mi=0; __mi<G.cli.msg_num; ++__mi)
 		{
@@ -296,7 +293,7 @@ int main1(int argc, char** argv)
 			tlmtr_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			tlmtr_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
 			// Sensors:
-			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("temperature").val();
+			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("temp_int").val();
 			// CRC:
 			const string msg_with_crc = string("\0",1) + "$$$" + tlmtr_stream.str() + '*' + CRC(tlmtr_stream.str());
 			cout<<C_GREEN<<msg_with_crc<<C_OFF<<endl;
