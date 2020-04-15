@@ -213,6 +213,8 @@ int main1(int argc, char** argv)
 				if(gps_fix_valid) {
 					GLOB::get().nmea_set(current_nmea);
 					GLOB::get().gps_fix_now();
+					// GLOB::get().dynamics_add("alt", dynamics_t::utc2tp(current_nmea.utc), current_nmea.alt);
+					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
 				}
 				else { // REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
 					nmea_t  valid_nmea = GLOB::get().nmea_get();
@@ -241,7 +243,9 @@ int main1(int argc, char** argv)
 	//
 	std::thread sensors_thread( [ds18b20_device]() {
 		while(G_RUN) {
-			GLOB::get().temperature = read_temp_from_ds18b20(ds18b20_device);
+			// internal temp
+			const float temp_int = read_temp_from_ds18b20(ds18b20_device);
+			GLOB::get().dynamics_add("temp_int", std::chrono::steady_clock::now(), temp_int);
 			this_thread::sleep_for( chrono::seconds(5) );
 		}
 	});
@@ -269,66 +273,57 @@ int main1(int argc, char** argv)
 	int msg_id = 0;
 	while(G_RUN)
 	{
-		int msg_num = 0;
-		while( 		G_RUN
-				&& 	(msg_num++ < G.cli.msg_num || G.gps_fix_age() > 20) )
+		// print dynamics
+		cout<<C_MAGENTA<<"alt "<<G.dynamics_get("alt").dVdT()<<C_OFF<<endl;
+		cout<<C_MAGENTA<<"temperature "<<G.dynamics_get("temperature").dVdT()<<C_OFF<<endl;
+
+		// telemetry
+		//
+		for(int __mi=0; __mi<G.cli.msg_num; ++__mi)
 		{
 			++msg_id;
 
-
 			// GPS data
-			//
 			const nmea_t valid_nmea = G.nmea_get();
 
-
-			// dynamics
-			//
-			G.dynamics_add("alt", 			dynamics_t::utc2tp(valid_nmea.utc), valid_nmea.alt);
-			G.dynamics_add("temperature", 	dynamics_t::utc2tp(valid_nmea.utc), G.temperature);
-			cout<<C_MAGENTA<<"alt "<<G.dynamics_get("alt").dVdT()<<C_OFF<<endl;
-			cout<<C_MAGENTA<<"temperature "<<G.dynamics_get("temperature").dVdT()<<C_OFF<<endl;
-
-
-			// telemetry message
-			//
-			stringstream  msg_stream;
+			// TELEMETRY MESSAGE
+			stringstream  tlmtr_stream;
 			// Callsign, ID, UTC:
-			msg_stream<<G.cli.callsign;
-			msg_stream<<","<<msg_id;
-			msg_stream<<","<<valid_nmea.utc;
-			// ONLY VALID LAT,LON,ALT ARE BEING SENT. LOOK INTO uBLOX THREAD
-			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
-			msg_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
+			tlmtr_stream<<G.cli.callsign;
+			tlmtr_stream<<","<<msg_id;
+			tlmtr_stream<<","<<valid_nmea.utc;
+			// !! ONLY VALID LAT,LON,ALT ARE BEING SENT. LOOK INTO uBLOX THREAD.
+			tlmtr_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
+			tlmtr_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
 			// Sensors:
-			msg_stream<<","<<setprecision(1)<<fixed<<G.temperature;
+			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("temperature").val();
 			// CRC:
-			const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
-			cout<<C_GREEN<<msg_and_crc<<C_OFF<<endl;
+			const string msg_with_crc = string("\0",1) + "$$$" + tlmtr_stream.str() + '*' + CRC(tlmtr_stream.str());
+			cout<<C_GREEN<<msg_with_crc<<C_OFF<<endl;
 
 			// emit telemetry msg @RF
 			//
-			mtx2_write(radio_fd, msg_and_crc + '\n');
+			mtx2_write(radio_fd, msg_with_crc + '\n');
 		}
 
 
 		// send SSDV image next packet
 		//
-		if( !ssdv_tiles.size() & G.cli.ssdv_image.size() )
-			cout<<"SSDV loaded "<<ssdv_tiles.load_file( G.cli.ssdv_image )<<" packets from disk."<<endl;
-		if( ssdv_tiles.size() )
+		if( 	G.gps_fix_age() < 20
+			&& 	G.dynamics_get("alt").dVdT() > -5  // not falling
+		)
 		{
-			auto tile = ssdv_tiles.next_tile();
-			if(!ssdv_tiles.size())	// delete image when done
+			if( !ssdv_tiles.size() && G.cli.ssdv_image.size() )
+				cout<<"SSDV loaded "<<	ssdv_tiles.load_file( G.cli.ssdv_image )	<<" packets from disk."<<endl;
+
+			if( ssdv_tiles.size() )
 			{
-				try {
-					system( (string("rm -f ") + G.cli.ssdv_image).c_str() );
-				}
-				catch(exception& e) {
-					cerr<<C_RED<<"Error deleting SSDV file.\n"<<e.what()<<C_OFF<<endl;
-				}
+				auto tile = ssdv_tiles.next_tile();
+				if(!ssdv_tiles.size())	// delete image when done
+					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
+				cout<<"Send SSDV @RF"<<endl;
+				mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 			}
-			cout<<"Send SSDV"<<endl;
-			mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 		}
 	}
 
@@ -346,7 +341,7 @@ int main1(int argc, char** argv)
 	cout<<"Closing gpio"<<endl;
 	gpioTerminate();
 	cout<<"Closing zmq thread"<<endl;
-	zmq_thread.join(); // will return after next received message, or stuck forever if no messages come in
+	zmq_thread.join(); // will return after next received message, or stuck forever if no messages comes in
 
 
     return 0;

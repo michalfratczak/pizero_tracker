@@ -8,7 +8,7 @@
 class dynamics_t
 {
 public:
-    using tp = std::chrono::system_clock::time_point;
+    using tp = std::chrono::steady_clock::time_point;
 
 private:
     bool    initialised_ = false;
@@ -26,14 +26,12 @@ public:
 
     bool    add(const tp timestamp, const float val); // utc_seconds is HHMMSS converted to seconds. return true if sample was accepted
 
+    float   val()   const { return val_; }
     float   min()   const { return val_min_; }
     float   max()   const { return val_max_; }
     float   dVdT()  const { return dVdT_; }
 
     std::string json() const;
-
-    static std::chrono::system_clock::time_point utc2tp(const std::string& utc);
-
 };
 
 

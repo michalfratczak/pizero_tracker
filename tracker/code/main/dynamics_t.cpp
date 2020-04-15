@@ -53,17 +53,3 @@ std::string dynamics_t::json() const
     ss<<"}";
     return ss.str();
 }
-
-std::chrono::system_clock::time_point dynamics_t::utc2tp(const std::string& utc)
-{
-	using namespace std;
-
-	// init with *now*
-	time_t _now = time(nullptr);   // "now: as long int
-	tm tm = *localtime(&_now); // init all fields
-
-	istringstream ss(utc);
-	ss >> get_time( &tm, "%H%M%S" ); // get HHMMSS
-
-	return	chrono::system_clock::from_time_t( mktime(&tm) );
-}
