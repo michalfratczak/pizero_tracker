@@ -4,7 +4,8 @@ import os, sys, string
 import argparse
 import json
 import time
-import datetime
+from datetime import datetime
+utcnow = datetime.utcnow
 import threading
 import traceback
 from pprint import pprint, pformat
@@ -13,7 +14,7 @@ import picamera
 
 
 GLOB = None
-
+BOOT_TIME = utcnow()
 
 def curdir():
 	if 'PWD' not in os.environ or not os.environ['PWD']:
@@ -32,19 +33,20 @@ def curdir():
 
 def prog_opts():
 	parser = argparse.ArgumentParser(description='arg parser')
+	parser.add_argument('--port', dest='port', action='store', type=int)
 	parser.add_argument('--cam_dir', dest='cam_dir', action='store')
-	parser.add_argument('--cam_interval', dest='cam_interval', action='store', type=int)
 	parser.add_argument('--cam_flip_h', dest='cam_flip_h', action='store', type=int)
 	parser.add_argument('--cam_flip_v', dest='cam_flip_v', action='store', type=int)
 
 	args = parser.parse_args()
 	ret = {
 		'cam_flip_h': 0,
-		'cam_flip_v': 0
+		'cam_flip_v': 0,
+		'port': 6666
 	}
 
+	if args.port:				ret['port'] = 				args.port
 	if args.cam_dir:			ret['cam_dir'] = 				args.cam_dir
-	if args.cam_interval:		ret['cam_interval'] = 		    args.cam_interval
 	if args.cam_flip_h:			ret['cam_flip_h'] = 			args.cam_flip_h
 	if args.cam_flip_v:			ret['cam_flip_v'] = 			args.cam_flip_v
 
@@ -61,32 +63,87 @@ def DecimalDegreeConvert(ddgr):
 
 
 def EXIF(camera, state):
+	lat = 0
+	lon = 0
+	alt = 0
+	if 'nmea' in STATE:
+		lat = STATE['nmea']['lat']
+		lon = STATE['nmea']['lon']
+		alt = STATE['nmea']['alt']
+
 	camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2020 Michal Fratczak michal@cgarea.com'
-	camera.exif_tags['GPS.GPSLatitude'] = '%d/1,%d/1,%d/100' % DecimalDegreeConvert(state['lat'])
-	camera.exif_tags['GPS.GPSLongitude'] = '%d/1,%d/1,%d/100' % DecimalDegreeConvert(state['lon'])
+	camera.exif_tags['GPS.GPSLatitude'] = '%d/1,%d/1,%d/100' % DecimalDegreeConvert(lat)
+	camera.exif_tags['GPS.GPSLongitude'] = '%d/1,%d/1,%d/100' % DecimalDegreeConvert(lon)
 
 	camera.exif_tags['GPS.GPSAltitudeRef'] = '0'
-	camera.exif_tags['GPS.GPSAltitude'] = '%d/100' % int( 100 * state['alt'] )
+	camera.exif_tags['GPS.GPSAltitude'] = '%d/100' % int( 100 * alt )
 
 	camera.exif_tags['GPS.GPSSpeedRef'] = 'K'
 	# camera.exif_tags['GPS.GPSSpeed'] = '%d/1000' % int(3600 * state['Speed'])
 	# camera.exif_tags['EXIF.UserComment'] = "GrndElev:" + str(state['GrndElev'])
 
 
-STATE = {
-		'lat': 52,
-		'lon': 21.1,
-		'alt': 150
-	}
+STATE = {}
 
 
 STATE_RUN = True
-def StateLoop():
+def StateLoop(port):
+	REQUEST_TIMEOUT = 3000
+	REQUEST_RETRIES = 1e12
+	SERVER_ENDPOINT = "tcp://localhost:" + str(port)
+
 	global STATE
-	while(STATE_RUN):
-		STATE['alt'] += 5
-		print('.')
+
+	context = zmq.Context(1)
+
+	print("Connecting to " + SERVER_ENDPOINT)
+	client = context.socket(zmq.REQ)
+	client.connect(SERVER_ENDPOINT)
+
+	poll = zmq.Poller()
+	poll.register(client, zmq.POLLIN)
+
+	query_msgs = ['nmea', 'dynamics']
+
+	retries_left = REQUEST_RETRIES
+	while STATE_RUN and retries_left:
 		time.sleep(1)
+		for qm in query_msgs:
+			# print("\n\nSending (%s)" % qm)
+			client.send(qm)
+
+			expect_reply = True
+			while STATE_RUN and expect_reply:
+				socks = dict(poll.poll(REQUEST_TIMEOUT))
+				if socks.get(client) == zmq.POLLIN:
+					reply = client.recv()
+					if reply:
+						try:
+							reply = reply.replace("'", '"')
+							STATE[qm] = json.loads(reply)
+						except:
+							print("Can't parse JSON for ", qm)
+							# print(traceback.format_exc())
+						expect_reply = False
+					else:
+						break
+				else:
+					# print("No response from server, retrying")
+					# Socket is confused. Close and remove it.
+					client.setsockopt(zmq.LINGER, 0)
+					client.close()
+					poll.unregister(client)
+					retries_left -= 1
+					if retries_left == 0:
+						print("Server seems to be offline, abandoning")
+						break
+					print("Reconnecting and resending (%s)" % qm)
+					# Create new connection
+					client = context.socket(zmq.REQ)
+					client.connect(SERVER_ENDPOINT)
+					poll.register(client, zmq.POLLIN)
+					client.send(qm)
+	context.term()
 
 
 def next_path(i_base, ext = ''): # get next subdir/subfile
@@ -102,6 +159,12 @@ def next_path(i_base, ext = ''): # get next subdir/subfile
 
 CAM_RUN = True
 def CameraLoop(session_dir, opts):
+
+	def seconds_since(since):
+		return (utcnow()-since).total_seconds()
+
+	# media dir
+	#
 	photo_lo_dir = os.path.join(session_dir, 'photo_lo')
 	photo_hi_dir = os.path.join(session_dir, 'photo_hi')
 	video_dir = os.path.join(session_dir, 'video')
@@ -113,6 +176,7 @@ def CameraLoop(session_dir, opts):
 	print('video_dir', video_dir)
 
 	# setup camera
+	#
 	CAMERA = picamera.PiCamera()
 	CAMERA.start_preview()
 	CAMERA.exposure_mode = 'auto'
@@ -125,8 +189,24 @@ def CameraLoop(session_dir, opts):
 
 	global STATE
 
+	alt = 0
+	dAlt = 0
+	b_stdby_mode = True # in this mode, just one small picture is recorded/sended
+	stdby_file = os.path.join(session_dir, 'stdby.jpeg')
 	global CAM_RUN
 	while(CAM_RUN):
+
+		# in this mode, just one small picture is recorded/sended
+		if b_stdby_mode:
+			print('b_stdby_mode')
+			CAMERA.resolution = (8*16, 4*16)
+			EXIF(CAMERA, STATE)
+			CAMERA.annotate_text = str( int(seconds_since(BOOT_TIME) / 60) )
+			CAMERA.capture( stdby_file )
+			time.sleep(5)
+			continue
+		else:
+			os.system( 'rm -f %s || echo "Cant remove stdby.jpeg"' % stdby_file )
 
 		# full res photo
 		print("Photo HI")
@@ -141,21 +221,32 @@ def CameraLoop(session_dir, opts):
 		snapshot_interval_secs = 3
 		CAMERA.resolution = (1280, 720)
 		CAMERA.start_recording( next_path(video_dir, 'h264'))
-		video_start = datetime.datetime.utcnow()
-		snapshot_time = datetime.datetime.utcnow()
-		while (datetime.datetime.utcnow() - video_start).total_seconds() < video_duration_secs:
+
+		# wait and update annotation and EXIF
+		video_start = utcnow()
+		snapshot_time = utcnow()
+		while seconds_since(video_start) < video_duration_secs:
+			if not CAM_RUN:
+				break
+
+			if 'dynamics' in STATE and 'alt' in STATE['dynamics']:
+				alt = 	STATE['dynamics']['alt']['val']
+				dAlt = 	STATE['dynamics']['alt']['dVdT']
+			print(alt, dAlt)
+
 			EXIF(CAMERA, STATE)
-			# STATE['alt'] += 5
-			CAMERA.annotate_text = 'Alt: %d m' % STATE['alt']
-			print(STATE['alt'])
-			# print( STATE['alt'] )
-			if (datetime.datetime.utcnow() - snapshot_time).total_seconds() > snapshot_interval_secs:
+			CAMERA.annotate_text = 'Alt: %d/%.01f m' % (int(alt), dAlt)
+
+			if seconds_since(snapshot_time) > snapshot_interval_secs:
 				print("Photo LO")
 				CAMERA.capture( next_path(photo_lo_dir, 'jpg'), use_video_port = True )
-				snapshot_time = datetime.datetime.utcnow()
+				snapshot_time = utcnow()
+
 			time.sleep(1)
+
 		CAMERA.stop_recording()
 
+	print('CAMERA.close()')
 	CAMERA.close()
 
 
@@ -174,7 +265,7 @@ def main():
 	try:
 		cam_process = threading.Thread( target = lambda: CameraLoop(session_dir, GLOB) )
 		cam_process.start()
-		state_process = threading.Thread( target=StateLoop )
+		state_process = threading.Thread( target= lambda: StateLoop(GLOB['port']) )
 		state_process.start()
 		while(1):
 			time.sleep(1)
