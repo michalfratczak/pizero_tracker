@@ -68,19 +68,19 @@ zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 {
 	auto& G = GLOB::get();
 	if(i_msg_str == "nmea")	{
-		std::string reply_str( "{'nmea':" + G.nmea_get().json() );
-		reply_str += ",'fixAge':" + std::to_string(G.gps_fix_age());
-		reply_str += "}";
+		std::string reply_str = G.nmea_get().json();
+		reply_str.pop_back();
+		reply_str += ",'fixAge':" + std::to_string(G.gps_fix_age()) + "}";
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
 	}
 	else if(i_msg_str == "dynamics")	{
-		std::string reply_str("{'dynamics':{");
+		std::string reply_str("{");
 		for(auto& dyn_name : G.dynamics_keys())
 			reply_str += "'" + dyn_name + "':" + G.dynamics_get(dyn_name).json() + ",";
 		reply_str.pop_back(); // last comma
-		reply_str += "}}";
+		reply_str += "}";
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
@@ -276,7 +276,7 @@ int main1(int argc, char** argv)
 
 		// telemetry. G.cli.msg_num sentences before SSDV
 		//
-		for(int __mi=0; __mi<G.cli.msg_num; ++__mi)
+		for(int __mi=0; __mi<G.cli.msg_num && G_RUN; ++__mi)
 		{
 			++msg_id;
 
