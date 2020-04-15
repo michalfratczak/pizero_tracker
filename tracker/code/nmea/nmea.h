@@ -19,13 +19,13 @@ public:
 
 	int sats = 0;
 
-	enum class fix_status_t {
+	enum class fix_status_t : int {
 		kInvalid=0, // V
 		kValid=1 // A
 	};
 	fix_status_t fix_status = fix_status_t::kInvalid;
 
-	enum class fix_quality_t {
+	enum class fix_quality_t : int {
 		kNoFix = 0,
 		kAutonomous = 1,
 		kDifferential = 2,
@@ -36,6 +36,7 @@ public:
 	fix_quality_t fix_quality = fix_quality_t::kNoFix;
 
 	std::string str() const;
+	std::string json() const;
 
 	int utc_as_seconds() const;	// convert utc HHMMSS to seconds
 };

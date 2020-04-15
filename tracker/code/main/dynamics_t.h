@@ -30,7 +30,9 @@ public:
     float   max()   const { return val_max_; }
     float   dVdT()  const { return dVdT_; }
 
-    static std::chrono::system_clock::time_point utc2tp(const std::string utc);
+    std::string json() const;
+
+    static std::chrono::system_clock::time_point utc2tp(const std::string& utc);
 
 };
 

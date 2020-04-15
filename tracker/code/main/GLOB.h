@@ -1,8 +1,10 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <map>
 #include <atomic>
+#include <chrono>
 
 #include "mtx2/mtx2.h"
 #include "nmea/nmea.h"
@@ -19,7 +21,8 @@ private:
     GLOB( const GLOB& ) = delete; // non construction-copyable
     GLOB& operator=( const GLOB& ) = delete; // non copyable
 
-    std::atomic<nmea_t> nmea; // GPS data
+    std::atomic<nmea_t> nmea_; // GPS data
+    std::chrono::steady_clock::time_point gps_fix_timestamp_;
 
     // sensors dynamics
     std::map<std::string, dynamics_t>    dynamics_; // index: value name (alt, temp1, etc.)
@@ -51,11 +54,15 @@ public:
     std::atomic<float>  temperature{0};
 
     bool        dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value);
-    dynamics_t  dynamics_get(const std::string& name);
+    dynamics_t  dynamics_get(const std::string& name) const;
+    std::vector<std::string>  dynamics_keys() const; // names in dynamics_
 
+    void    nmea_set(const nmea_t& in_nmea) { get().nmea_ = in_nmea; }
+    nmea_t  nmea_get() { nmea_t ret = get().nmea_; return ret; }
 
-    nmea_t nmea_get() { nmea_t ret = get().nmea; return ret; }
-    void   nmea_set(const nmea_t& in_nmea) { get().nmea = in_nmea; }
+    void gps_fix_now() { gps_fix_timestamp_ = std::chrono::steady_clock::now(); }
+    int  gps_fix_age() const { return (std::chrono::steady_clock::now() - gps_fix_timestamp_).count() / 1e9; }
+
     std::string str() const;
 
 };

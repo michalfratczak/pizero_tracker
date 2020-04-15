@@ -36,11 +36,19 @@ bool GLOB::dynamics_add(const std::string& name, const dynamics_t::tp timestamp,
 
 }
 
-dynamics_t GLOB::dynamics_get(const std::string& name)
+dynamics_t GLOB::dynamics_get(const std::string& name) const
 {
     auto d = dynamics_.find(name);
     if( d == dynamics_.end() )
         return dynamics_t(); // default, uninitialised
     else
         return d->second;
+}
+
+std::vector<std::string> GLOB::dynamics_keys() const
+{
+    std::vector<std::string> ret;
+    for(const auto& k : dynamics_)
+        ret.push_back(k.first);
+    return ret;
 }

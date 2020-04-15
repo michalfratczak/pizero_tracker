@@ -70,13 +70,19 @@ zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 {
 	auto& G = GLOB::get();
 	if(i_msg_str == "nmea")	{
-		const std::string reply_str( G.nmea_get().str() );
+		std::string reply_str( "{'nmea':" + G.nmea_get().json() );
+		reply_str += ",'fixAge':" + std::to_string(G.gps_fix_age());
+		reply_str += "}";
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
 	}
-	else if(i_msg_str == "temp")	{
-		std::string reply_str = std::to_string( G.temperature );
+	else if(i_msg_str == "dynamics")	{
+		std::string reply_str("{'dynamics':{");
+		for(auto& dyn_name : G.dynamics_keys())
+			reply_str += "'" + dyn_name + "':" + G.dynamics_get(dyn_name).json() + ",";
+		reply_str.pop_back(); // last comma
+		reply_str += "}}";
 		zmq::message_t reply( reply_str.size() );
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
@@ -189,17 +195,33 @@ int main1(int argc, char** argv)
 	//
 	std::thread ublox_thread( [uBlox_i2c_fd]() {
 		while(G_RUN) {
+			// std::this_thread::sleep_for( std::chrono::seconds(5) );
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
 			const string nmea_str( NMEA_get_last_msg(ublox_data.data(), ublox_data.size()) );
 			cout<<nmea_str<<C_OFF<<endl;
-			if( !NMEA_msg_checksum_ok(nmea_str) )
-			{
+			if( !NMEA_msg_checksum_ok(nmea_str) ) {
 				cerr<<C_RED<<"NMEA Checksum Fail: "<<nmea_str<<C_OFF<<endl;
 				continue;
 			}
-			nmea_t nmea = GLOB::get().nmea_get();
-			NMEA_parse( nmea_str.c_str(), nmea ); // nmea fields that were not altered by GGA/RMC will remain unmodified
-			GLOB::get().nmea_set(nmea); //update global nmea
+			nmea_t current_nmea;
+			if( NMEA_parse(nmea_str.c_str(), current_nmea) ) {
+				// only one at a time can be valid.
+				// fix_status is from RMC, fix_quality is from GGA
+				const bool gps_fix_valid =
+								current_nmea.fix_status  == nmea_t::fix_status_t::kValid
+							|| 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
+				if(gps_fix_valid) {
+					GLOB::get().nmea_set(current_nmea);
+					GLOB::get().gps_fix_now();
+				}
+				else { // REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
+					nmea_t  valid_nmea = GLOB::get().nmea_get();
+					current_nmea.lat = valid_nmea.lat;
+					current_nmea.lon = valid_nmea.lon;
+					current_nmea.alt = valid_nmea.alt;
+					GLOB::get().nmea_set(current_nmea);
+				}
+			}
 		}
 	});
 
@@ -236,7 +258,6 @@ int main1(int argc, char** argv)
 			if(!res.has_value())
 				continue;
 			string msg_str( (char*)msg.data(), msg.size() );
-			cout<<"ZMQ msg: "<<msg_str<<endl;
 			zmq_socket.send( make_zmq_reply(msg_str), zmq::send_flags::none );
 		}
 	});
@@ -244,27 +265,20 @@ int main1(int argc, char** argv)
 
 	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TEMEMETRY AND IMAGE
 	//
-	nmea_t valid_nmea;
 	ssdv_t ssdv_tiles;
 	int msg_id = 0;
 	while(G_RUN)
 	{
 		int msg_num = 0;
-		while( G_RUN && msg_num++ < G.cli.msg_num )
+		while( 		G_RUN
+				&& 	(msg_num++ < G.cli.msg_num || G.gps_fix_age() > 20) )
 		{
 			++msg_id;
 
 
 			// GPS data
 			//
-			const nmea_t current_nmea = G.nmea_get();
-			const bool gps_fix_valid =
-						current_nmea.fix_status  == nmea_t::fix_status_t::kValid
-					&& 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
-			if(gps_fix_valid)
-				valid_nmea = current_nmea;
-			else // at least use time
-				memcpy( valid_nmea.utc, current_nmea.utc, sizeof(current_nmea.utc) );
+			const nmea_t valid_nmea = G.nmea_get();
 
 
 			// dynamics
@@ -278,25 +292,22 @@ int main1(int argc, char** argv)
 			// telemetry message
 			//
 			stringstream  msg_stream;
+			// Callsign, ID, UTC:
 			msg_stream<<G.cli.callsign;
 			msg_stream<<","<<msg_id;
 			msg_stream<<","<<valid_nmea.utc;
+			// ONLY VALID LAT,LON,ALT ARE BEING SENT. LOOK INTO uBLOX THREAD
 			msg_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
-			msg_stream<<","<<valid_nmea.sats<<","<<gps_fix_valid;
+			msg_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
+			// Sensors:
 			msg_stream<<","<<setprecision(1)<<fixed<<G.temperature;
-
+			// CRC:
 			const string msg_and_crc = string("\0",1) + "$$$" + msg_stream.str() + '*' + CRC(msg_stream.str());
 			cout<<C_GREEN<<msg_and_crc<<C_OFF<<endl;
 
-			// emit telemetry msg RF
+			// emit telemetry msg @RF
 			//
 			mtx2_write(radio_fd, msg_and_crc + '\n');
-
-			// if no GPS fix, keep sending telemetry instead of SSDV
-			//
-			// for some reason this loop-restart does not work with for() loop
-			if( !gps_fix_valid )
-				msg_num = 0;
 		}
 
 
@@ -326,15 +337,15 @@ int main1(int argc, char** argv)
 	//
 	cout<<"Closing sensors thread"<<endl;
 	sensors_thread.join();
-	cout<<"Closing uBlox I2C"<<endl;
+	cout<<"Closing uBlox I2C thread and device"<<endl;
 	ublox_thread.join();
     close(uBlox_i2c_fd);
-	cout<<"Closing UART Radio"<<endl;
+	cout<<"Closing UART Radio device"<<endl;
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
 	cout<<"Closing gpio"<<endl;
 	gpioTerminate();
-	cout<<"Closing zmq"<<endl;
+	cout<<"Closing zmq thread"<<endl;
 	zmq_thread.join(); // will return after next received message, or stuck forever if no messages come in
 
 

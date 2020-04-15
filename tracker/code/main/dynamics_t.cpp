@@ -40,7 +40,21 @@ bool dynamics_t::add(const tp timestamp, const float val)
     return true;
 }
 
-std::chrono::system_clock::time_point dynamics_t::utc2tp(const std::string utc)
+std::string dynamics_t::json() const
+{
+    std::stringstream ss;
+    std::string sep(",");
+    ss<<"{";
+        ss<<"'initialised':"<<initialised_<<sep;
+        ss<<"'val':"<<val_<<sep;
+        ss<<"'min':"<<val_min_<<sep;
+        ss<<"'max':"<<val_max_<<sep;
+        ss<<"'dVdT':"<<dVdT_;
+    ss<<"}";
+    return ss.str();
+}
+
+std::chrono::system_clock::time_point dynamics_t::utc2tp(const std::string& utc)
 {
 	using namespace std;
 

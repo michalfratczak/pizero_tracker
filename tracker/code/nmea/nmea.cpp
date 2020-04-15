@@ -137,7 +137,8 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 		int scanned_positions =
 			sscanf(Buffer + 7, "%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &
 				utc, &lat, &ns, &lon, &ew, &quality, &sats, &hdop, &alt, &alt_units);
-		if(scanned_positions == 10)
+
+		if(scanned_positions >= 10)
 		{
 			lat = degree_2_decimal(lat);
 			if(ns == 'S')
@@ -195,7 +196,8 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 		int scanned_positions =
 			sscanf(Buffer+7, "%f,%c,%f,%c,%f,%c,%[^','],%[^','],%d",
 				&utc, &status, &lat, &ns, &lon, &ew, speedstring, coursestring, &date);
-		if(scanned_positions == 7)
+
+		if(scanned_positions >= 7)
 		{
 			speedOG = atof(speedstring);
 			courseOG = atof(coursestring);
@@ -278,6 +280,48 @@ std::string nmea_t::str() const
 		s<<"Q:kRtkFloat";
 	else if( fix_quality == nmea_t::fix_quality_t::kEstimated )
 		s<<"Q:kEstimated";
+
+	return s.str();
+}
+
+
+
+std::string nmea_t::json() const
+{
+	std::stringstream s;
+	std::string sep(",");
+
+	s<<"{";
+
+	s<<"'utc':"<<utc<<sep;
+	s<<"'lat':"<<lat<<sep;
+	s<<"'lon':"<<lon<<sep;
+	s<<"'alt':"<<alt<<sep;
+
+	s<<"'speed_over_ground_mps':"<<speed_over_ground_mps<<sep;
+	s<<"'course_over_ground_deg':"<<course_over_ground_deg<<sep;
+
+	s<<"'sats':"<<sats<<sep;
+
+	if(fix_status == nmea_t::fix_status_t::kValid)
+		s<<"'fixStatus':'VALID'"<<sep;
+	else if(fix_status == nmea_t::fix_status_t::kInvalid)
+		s<<"'fixStatus':'INVALID'"<<sep;
+
+	if( fix_quality == nmea_t::fix_quality_t::kNoFix )
+		s<<"'Q':'kNoFix'";
+	else if( fix_quality == nmea_t::fix_quality_t::kAutonomous )
+		s<<"'Q:kAutonomous'";
+	else if( fix_quality == nmea_t::fix_quality_t::kDifferential )
+		s<<"'Q:kDifferential'";
+	else if( fix_quality == nmea_t::fix_quality_t::kRtkFixed )
+		s<<"'Q:kRtkFixed'";
+	else if( fix_quality == nmea_t::fix_quality_t::kRtkFloat )
+		s<<"'Q:kRtkFloat'";
+	else if( fix_quality == nmea_t::fix_quality_t::kEstimated )
+		s<<"'Q:kEstimated'";
+
+	s<<"}";
 
 	return s.str();
 }
