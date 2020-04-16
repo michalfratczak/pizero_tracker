@@ -22,7 +22,7 @@ boost program_options
 
 https://github.com/zeromq/cppzmq/
 
-pip install zmq
+pip install zmq exifread
 
 sudo apt-get install imagemagick
 

@@ -244,7 +244,6 @@ int main1(int argc, char** argv)
 			// internal temp
 			const float temp_int = read_temp_from_ds18b20(ds18b20_device);
 			GLOB::get().dynamics_add("temp_int", std::chrono::steady_clock::now(), temp_int);
-			cout<<C_RED<<"temp "<<GLOB::get().dynamics_get("temp_int").str()<<C_OFF<<endl;
 			this_thread::sleep_for( chrono::seconds(15) );
 		}
 	});
@@ -314,10 +313,10 @@ int main1(int argc, char** argv)
 			if( ssdv_tiles.size() )
 			{
 				auto tile = ssdv_tiles.next_tile();
-				if(!ssdv_tiles.size())	// delete image when done
-					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
 				cout<<"Send SSDV @RF"<<endl;
 				mtx2_write( radio_fd, tile.data(), sizeof(tile) );
+				if(!ssdv_tiles.size())	// delete image when done
+					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
 			}
 		}
 	}

@@ -4,13 +4,17 @@ import os, sys, string
 import argparse
 import json
 import time
-from datetime import datetime
-utcnow = datetime.utcnow
 import threading
+import subprocess
+import shlex
+import shutil
 import traceback
 from pprint import pprint, pformat
 import zmq
 import picamera
+import exifread
+from datetime import datetime
+utcnow = datetime.utcnow
 
 
 THREADS_RUN = True
@@ -25,14 +29,17 @@ def curdir():
 		_d = os.path.dirname(__file__)
 	else:
 		_d = os.environ['PWD']
-
 	if _d == '.':
 		_d = os.getcwd()
-
 	if not _d:
 		return None
-
 	return _d
+
+
+def RunCmd(cmd):
+	p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, shell=False )
+	(stdoutdata, stderrdata) =  p.communicate()
+	return stdoutdata
 
 
 # load key = value file with #comments
@@ -91,6 +98,49 @@ def prog_opts():
 	return ret
 
 
+def FileExif(i_path):
+	try:
+		with open(i_path, 'rb') as f:
+			tags = exifread.process_file(f)
+			tags['JPEGThumbnail'] = None
+			return tags
+	except:
+		print("Error reading EXIF: ", i_path)
+
+
+def ConvertToSSDV(i_file, o_file, resolution, callsign, image_id):
+	if not os.path.isfile(i_file):
+		print("ConvertToSSDV: not a file ", i_file)
+
+	alt = 0
+	try:
+		exif = FileExif(i_file)
+		alt= str(exif['GPS GPSAltitude']) # 1149/10
+		alt = eval(alt)
+	except:
+		pass
+
+	rx = 16 * int(resolution/16)
+	ry = 16 * int(resolution*2/3/16)
+	ann = 'Alt ' + str(alt)
+
+	resize_cmd = ""
+	resize_cmd += "convert %s " % i_file
+	resize_cmd += "-resize %dx%d^ -gravity center -extent %dx%d " % (rx,ry,rx,ry)
+	# disable annotation because we use low-res snapshots that are already annotated
+	# resize_cmd += "-gravity north -stroke '#333C' -strokewidth 2 -annotate +0+10 '%s' " % ann
+	# resize_cmd += "-stroke  none   -fill white    -annotate +0+10 '%s' " % ann
+	resize_cmd += o_file + '_toSSDV.jpg'
+	print(resize_cmd)
+	print( RunCmd(resize_cmd) )
+
+	ssdv_cmd = '/boot/ssdv -e -c %s -i %d %s %s' % (callsign, image_id, o_file + '_toSSDV.jpg', o_file)
+	print(ssdv_cmd)
+	print( RunCmd(ssdv_cmd) )
+
+	os.remove(o_file + '_toSSDV.jpg')
+
+
 def DecimalDegreeConvert(ddgr):
 	d = int(ddgr)
 	m = int((ddgr - d) * 60)
@@ -98,7 +148,7 @@ def DecimalDegreeConvert(ddgr):
 	return (d,m,s)
 
 
-def EXIF(camera, state):
+def SetCameraExif(camera, state):
 	lat = 0
 	lon = 0
 	alt = 0
@@ -178,7 +228,7 @@ def StateLoop(port):
 
 
 
-def SSDV_DeliverLoop(callsign, out_ssdv_path):
+def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 	'''
 	picks last image from PHOTO_ARR, converts to SSDV and copies to output
 	'''
@@ -195,9 +245,7 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path):
 			continue
 
 		ssdv_in = PHOTO_ARR.pop()
-		cmd = '/boot/ssdv -e -c %s -i %d %s %s' % (callsign, image_id, ssdv_in, out_ssdv_path)
-		print(cmd)
-		os.system( cmd )
+		ConvertToSSDV( ssdv_in, out_ssdv_path, res, callsign, image_id)
 		image_id += 1
 
 
@@ -256,7 +304,7 @@ def CameraLoop(session_dir, opts):
 		if b_stdby_mode:
 			# print('b_stdby_mode')
 			CAMERA.resolution = (8*16, 4*16)
-			EXIF(CAMERA, STATE)
+			SetCameraExif(CAMERA, STATE)
 			CAMERA.annotate_text = str( int(seconds_since(BOOT_TIME) / 60) )
 			CAMERA.capture( stdby_file )
 			time.sleep(5)
@@ -267,7 +315,7 @@ def CameraLoop(session_dir, opts):
 		# full res photo
 		print("Photo HI")
 		CAMERA.resolution = (2592, 1944)
-		EXIF(CAMERA, STATE)
+		SetCameraExif(CAMERA, STATE)
 		CAMERA.annotate_text = ''
 		CAMERA.capture( next_path(photo_hi_dir, 'jpeg'))
 
@@ -289,9 +337,9 @@ def CameraLoop(session_dir, opts):
 				alt = 	STATE['dynamics']['alt']['val']
 				dAlt = 	STATE['dynamics']['alt']['dVdT']
 				dAltAvg = 	STATE['dynamics']['alt']['dVdT_avg']
-				print(alt, dAlt, dAltAvg)
+				# print(alt, dAlt, dAltAvg)
 
-			EXIF(CAMERA, STATE)
+			SetCameraExif(CAMERA, STATE)
 			CAMERA.annotate_text = 'Alt: %d/%.01f m' % (int(alt), dAlt)
 
 			if seconds_since(snapshot_time) > snapshot_interval_secs:
@@ -301,8 +349,6 @@ def CameraLoop(session_dir, opts):
 				snapshot_time = utcnow()
 
 			time.sleep(1)
-
-		print("CAMERA.stop_recording()")
 		CAMERA.stop_recording()
 
 	print('CAMERA.close()')
@@ -327,7 +373,7 @@ def main():
 		cam_process.start()
 		state_process = threading.Thread( target= lambda: StateLoop(GLOB['port']) )
 		state_process.start()
-		ssdv_process = threading.Thread( target= lambda: SSDV_DeliverLoop( GLOB['callsign'], GLOB['ssdv']) )
+		ssdv_process = threading.Thread( target= lambda: SSDV_DeliverLoop( GLOB['callsign'], GLOB['ssdv'], GLOB['cam_ssdv_res']) )
 		ssdv_process.start()
 		while(1):
 			time.sleep(1)
@@ -347,3 +393,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+	# ConvertToSSDV(sys.argv[-2], sys.argv[-1], 512, 'fro', 0)
