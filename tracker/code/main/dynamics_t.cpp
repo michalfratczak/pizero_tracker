@@ -22,10 +22,10 @@ bool dynamics_t::add(const tp timestamp, const float val)
         return true;
     }
 
-    if( (timestamp - val_prev_timestamp_).count() < min_dT_ )
+    if( (timestamp - val_prev_timestamp_).count()/1e9 < min_dT_ )
         return false;
 
-    dVdT_ = (val - val_) / float((timestamp - val_prev_timestamp_).count());
+    dVdT_ = (val - val_) / float((timestamp - val_prev_timestamp_).count()/1e9);
 
     if(val > val_max_)
         val_max_ = val;
