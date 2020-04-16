@@ -13,7 +13,6 @@ public:
 private:
     bool    initialised_ = false;
     float   val_ = 0;
-    float   val_prev_ = 0;
     tp      val_prev_timestamp_; // timestamp of previous value
     float   val_min_ = std::numeric_limits<float>::max();
     float   val_max_ = -std::numeric_limits<float>::min();

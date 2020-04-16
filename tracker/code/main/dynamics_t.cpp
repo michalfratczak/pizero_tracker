@@ -10,7 +10,6 @@ bool dynamics_t::add(const tp timestamp, const float val)
     if( !initialised_ && timestamp.time_since_epoch().count() )
     {
         val_ = val;
-        val_prev_ = val;
         val_prev_timestamp_ = timestamp;
         dVdT_ = 0;
 
@@ -26,7 +25,7 @@ bool dynamics_t::add(const tp timestamp, const float val)
     if( (timestamp - val_prev_timestamp_).count() < min_dT_ )
         return false;
 
-    dVdT_ = (val - val_prev_) / float((timestamp - val_prev_timestamp_).count());
+    dVdT_ = (val - val_) / float((timestamp - val_prev_timestamp_).count());
 
     if(val > val_max_)
         val_max_ = val;
@@ -34,7 +33,7 @@ bool dynamics_t::add(const tp timestamp, const float val)
     if(val < val_min_)
         val_min_ = val;
 
-    val_prev_ = val;
+    val_ = val;
     val_prev_timestamp_ = timestamp;
 
     return true;
