@@ -21,3 +21,5 @@ dependencies
 boost program_options
 
 https://github.com/zeromq/cppzmq/
+
+pip install zmq
