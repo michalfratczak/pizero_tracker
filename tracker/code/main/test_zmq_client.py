@@ -8,14 +8,14 @@ import zmq
 
 
 def process_reply(msg):
-	if "dynamics" in msg or "nmea" in msg:
-		msg = msg.replace("'", '"')
-		try:
-			data = json.loads(msg)
-			return data
-		except:
-			print(traceback.format_exc())
-		# time.sleep(1)
+	msg = msg.replace("'", '"')
+	try:
+		data = json.loads(msg)
+		return data
+	except:
+		print(traceback.format_exc())
+		print(msg)
+	# time.sleep(1)
 
 
 def main2():
@@ -32,7 +32,7 @@ def main2():
 	poll = zmq.Poller()
 	poll.register(client, zmq.POLLIN)
 
-	query_msgs = ['nmea', 'dynamics', 'invalid']
+	query_msgs = ['nmea', 'dynamics']
 
 	retries_left = REQUEST_RETRIES
 	while retries_left:
@@ -47,7 +47,7 @@ def main2():
 				if socks.get(client) == zmq.POLLIN:
 					reply = client.recv()
 					if reply:
-						print("OK")
+						# print("OK")
 						pprint( process_reply(reply) )
 						expect_reply = False
 					else:

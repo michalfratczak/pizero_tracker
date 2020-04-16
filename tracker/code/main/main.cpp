@@ -194,14 +194,21 @@ int main1(int argc, char** argv)
 	std::thread ublox_thread( [uBlox_i2c_fd]() {
 		while(G_RUN) {
 			// std::this_thread::sleep_for( std::chrono::seconds(5) );
-			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd);
+			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd); // typical blocking time: 0/1/1.2 seconds
 			const string nmea_str = NMEA_get_last_msg(ublox_data.data(), ublox_data.size());
-			cout<<nmea_str<<endl;
+			// cout<<nmea_str<<endl;
 			if( !NMEA_msg_checksum_ok(nmea_str) ) {
 				cerr<<C_RED<<"NMEA Checksum Fail: "<<nmea_str<<C_OFF<<endl;
 				continue;
 			}
+
 			nmea_t current_nmea;
+			// REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
+			const nmea_t  valid_nmea = GLOB::get().nmea_get();
+			current_nmea.lat = valid_nmea.lat;
+			current_nmea.lon = valid_nmea.lon;
+			current_nmea.alt = valid_nmea.alt;
+
 			if( NMEA_parse(nmea_str.c_str(), current_nmea) ) {
 				// only one at a time can be valid.
 				// fix_status is from RMC, fix_quality is from GGA
@@ -210,15 +217,8 @@ int main1(int argc, char** argv)
 							|| 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
 				if(gps_fix_valid) {
 					GLOB::get().nmea_set(current_nmea);
-					GLOB::get().gps_fix_now();
+					GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
 					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
-				}
-				else { // REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
-					nmea_t  valid_nmea = GLOB::get().nmea_get();
-					current_nmea.lat = valid_nmea.lat;
-					current_nmea.lon = valid_nmea.lon;
-					current_nmea.alt = valid_nmea.alt;
-					GLOB::get().nmea_set(current_nmea);
 				}
 			}
 		}

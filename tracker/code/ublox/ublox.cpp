@@ -82,7 +82,7 @@ std::vector<char> uBLOX_read_msg(int fd, int usec_sleep)
 
 		if(buff_i == buff_o) // no msg found
 		{
-			usleep(usec_sleep); // .3 sec
+			usleep(usec_sleep);
 			continue;
 		}
 

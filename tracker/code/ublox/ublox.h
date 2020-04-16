@@ -12,7 +12,7 @@ int uBLOX_i2c_open(const std::string i_device, const unsigned char addr); // "/d
 // read char from file descriptor
 // and returns a std:string message (anything  between 255 or /n characters);
 // sometimes returns just \n
-// usec_sleep = sleep  microseconds when uBLOX talks 255
+// usec_sleep = sleep  microseconds when uBLOX talks 255 -- 0.3 sec
 std::vector<char> uBLOX_read_msg(int fd, int usec_sleep = 3e5);
 
 // write message with ACK
