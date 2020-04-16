@@ -219,6 +219,7 @@ int main1(int argc, char** argv)
 					GLOB::get().nmea_set(current_nmea);
 					GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
 					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
+					cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
 				}
 			}
 		}
@@ -243,7 +244,8 @@ int main1(int argc, char** argv)
 			// internal temp
 			const float temp_int = read_temp_from_ds18b20(ds18b20_device);
 			GLOB::get().dynamics_add("temp_int", std::chrono::steady_clock::now(), temp_int);
-			this_thread::sleep_for( chrono::seconds(5) );
+			cout<<C_RED<<"temp "<<GLOB::get().dynamics_get("temp_int").str()<<C_OFF<<endl;
+			this_thread::sleep_for( chrono::seconds(15) );
 		}
 	});
 
@@ -270,10 +272,6 @@ int main1(int argc, char** argv)
 	int msg_id = 0;
 	while(G_RUN)
 	{
-		// print dynamics
-		cout<<C_MAGENTA<<"alt "<<G.dynamics_get("alt").dVdT()<<C_OFF<<endl;
-		cout<<C_MAGENTA<<"temp_int "<<G.dynamics_get("temp_int").dVdT()<<C_OFF<<endl;
-
 		// telemetry. G.cli.msg_num sentences before SSDV
 		//
 		for(int __mi=0; __mi<G.cli.msg_num && G_RUN; ++__mi)

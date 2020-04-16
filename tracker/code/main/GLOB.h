@@ -50,7 +50,7 @@ public:
     };
     cli_t cli;
 
-    bool        dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value);
+    void        dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value);
     dynamics_t  dynamics_get(const std::string& name) const;
     std::vector<std::string>  dynamics_keys() const; // names in dynamics_
 

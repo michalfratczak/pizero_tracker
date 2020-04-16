@@ -3,53 +3,58 @@
 
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 #include <algorithm>
 
 
 // utc_seconds is HHMMSS converted to seconds. return true if sample was accepted
-bool dynamics_t::add(const tp timestamp, const float val)
+void dynamics_t::add(const tp timestamp, const float val)
 {
-    if( !initialised_ && timestamp.time_since_epoch().count() )
-    {
-        val_ = val;
-        val_prev_ = val;
-        val_prev_timestamp_ = timestamp;
-        dVdT_ = 0;
-
-        if(val > val_max_)
-            val_max_ = val;
-        if(val < val_min_)
-            val_min_ = val;
-
-        initialised_ = true;
-        return true;
-    }
-
     val_ = val;
     val_min_ = std::min(val_, val_min_);
     val_max_ = std::max(val_, val_max_);
 
+    if( !initialised_ && timestamp.time_since_epoch().count() )
+    {
+        val_prev_ = val;
+        val_prev_timestamp_ = timestamp;
+        dVdT_ = 0;
+        initialised_ = true;
+        return;
+    }
+
     const float dT = float((timestamp - val_prev_timestamp_).count())/1e9;
     if( dT < min_dT_ )
-        return false;
+        return;
 
-    dVdT_ = (val - val_prev_) / dT;
+    const float dV = (val_ - val_prev_);
+    dVdT_ = dV / dT;
+    dVdT_avg_.add(dVdT_);
     val_prev_ = val;
     val_prev_timestamp_ = timestamp;
 
-    return true;
+    /*std::cout   <<"\n\tval "<<val
+                <<"\n\tdV "<<dV
+                <<"\n\tdT "<<dT
+                <<"\n\tdV/dT "<<dVdT_<<std::endl;*/
 }
+
+
+std::string dynamics_t::str() const
+{
+    std::stringstream ss;
+    std::string sep(", ");
+    ss<<"'initialised':"<<initialised_<<sep;
+    ss<<"'val':"<<val_<<sep;
+    ss<<"'min':"<<val_min_<<sep;
+    ss<<"'max':"<<val_max_<<sep;
+    ss<<"'dVdT':"<<dVdT_<<sep;
+    ss<<"'dVdT_avg':"<<dVdT_avg_.get();
+    return ss.str();
+}
+
 
 std::string dynamics_t::json() const
 {
-    std::stringstream ss;
-    std::string sep(",");
-    ss<<"{";
-        ss<<"'initialised':"<<initialised_<<sep;
-        ss<<"'val':"<<val_<<sep;
-        ss<<"'min':"<<val_min_<<sep;
-        ss<<"'max':"<<val_max_<<sep;
-        ss<<"'dVdT':"<<dVdT_;
-    ss<<"}";
-    return ss.str();
+    return std::string( "{" + str() + "}" );
 }

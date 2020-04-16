@@ -21,17 +21,17 @@ std::string GLOB::str() const
 }
 
 
-bool GLOB::dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value)
+void GLOB::dynamics_add(const std::string& name, const dynamics_t::tp timestamp, const float value)
 {
     auto d = dynamics_.find(name);
     if( d == dynamics_.end() )
     {
         dynamics_[name] = dynamics_t();
-        return dynamics_[name].add(timestamp, value);
+        dynamics_[name].add(timestamp, value);
     }
     else
     {
-        return d->second.add(timestamp, value);
+        d->second.add(timestamp, value);
     }
 
 }
