@@ -13,8 +13,12 @@ import zmq
 import picamera
 
 
+THREADS_RUN = True
 GLOB = None
 BOOT_TIME = utcnow()
+STATE = {}
+PHOTO_ARR = [] # list of taken photo files.
+
 
 def curdir():
 	if 'PWD' not in os.environ or not os.environ['PWD']:
@@ -31,27 +35,60 @@ def curdir():
 	return _d
 
 
+# load key = value file with #comments
+def config_file_read(fName):
+	with open(fName) as f:
+		lines = f.readlines()
+		lines = map(string.strip, lines)
+		lines = filter(lambda x: not x.startswith('#'), lines)
+		while '' in lines:
+			lines.remove('')
+		# lines = filter(lambda x: x.startswith('port') or x.startswith('cam_'), lines)
+		lines = map(lambda x: x.split('#')[0], lines)
+		key_vals = map( lambda x: x.split('=', 1), lines )
+		key_vals = map( lambda x: [ string.strip(x[0]), string.strip(x[1]) ], key_vals )
+		return key_vals
+
+
 def prog_opts():
 	parser = argparse.ArgumentParser(description='arg parser')
+	parser.add_argument('--config', type=str, action='store')
 	parser.add_argument('--port', dest='port', action='store', type=int)
 	parser.add_argument('--cam_dir', dest='cam_dir', action='store')
 	parser.add_argument('--cam_flip_h', dest='cam_flip_h', action='store', type=int)
 	parser.add_argument('--cam_flip_v', dest='cam_flip_v', action='store', type=int)
+	parser.add_argument('--cam_ssdv_res', dest='cam_ssdv_res', action='store', type=int)
+	parser.add_argument('--cam_video_dur', dest='cam_video_dur', action='store', type=int)
 
 	args = parser.parse_args()
 	ret = {
+		'port': 6666,
 		'cam_flip_h': 0,
 		'cam_flip_v': 0,
-		'port': 6666
+		'cam_ssdv_res': 256,
+		'cam_video_dur': 15, # seconds
 	}
 
-	if args.port:				ret['port'] = 				args.port
-	if args.cam_dir:			ret['cam_dir'] = 				args.cam_dir
-	if args.cam_flip_h:			ret['cam_flip_h'] = 			args.cam_flip_h
-	if args.cam_flip_v:			ret['cam_flip_v'] = 			args.cam_flip_v
+	if args.config:
+		for k,v in config_file_read( args.config ):
+			ret[k] = v
+			try:		ret[k] = int(v)
+			except:		pass
+
+	if args.port:			ret['port'] = args.port
+	if args.cam_dir:		ret['cam_dir'] = args.cam_dir
+	if args.cam_flip_h:		ret['cam_flip_h'] = args.cam_flip_h
+	if args.cam_flip_v:		ret['cam_flip_v'] = args.cam_flip_v
+	if args.cam_ssdv_res:	ret['cam_ssdv_res'] = args.cam_ssdv_res
+	if args.cam_video_dur:	ret['cam_video_dur'] = args.cam_video_dur
+
+	# pprint(ret)
+
+	if 'cam_dir' not in ret:
+		print(sys.argv[0] + "No cam_dir. Exit.")
+		sys.exit(1)
 
 	return ret
-
 
 
 def DecimalDegreeConvert(ddgr):
@@ -59,7 +96,6 @@ def DecimalDegreeConvert(ddgr):
 	m = int((ddgr - d) * 60)
 	s = (ddgr - d - m/60) * 3600
 	return (d,m,s)
-
 
 
 def EXIF(camera, state):
@@ -83,46 +119,41 @@ def EXIF(camera, state):
 	# camera.exif_tags['EXIF.UserComment'] = "GrndElev:" + str(state['GrndElev'])
 
 
-STATE = {}
-
-
-STATE_RUN = True
 def StateLoop(port):
 	REQUEST_TIMEOUT = 3000
-	REQUEST_RETRIES = 1e12
+	REQUEST_RETRIES = 1e30
 	SERVER_ENDPOINT = "tcp://localhost:" + str(port)
 
 	global STATE
 
-	context = zmq.Context(1)
 
 	print("Connecting to " + SERVER_ENDPOINT)
+	context = zmq.Context(1)
 	client = context.socket(zmq.REQ)
 	client.connect(SERVER_ENDPOINT)
-
 	poll = zmq.Poller()
 	poll.register(client, zmq.POLLIN)
-
 	query_msgs = ['nmea', 'dynamics']
 
+
 	retries_left = REQUEST_RETRIES
-	while STATE_RUN and retries_left:
+	while THREADS_RUN and retries_left:
 		time.sleep(1)
 		for qm in query_msgs:
 			# print("\n\nSending (%s)" % qm)
 			client.send(qm)
 
 			expect_reply = True
-			while STATE_RUN and expect_reply:
+			while THREADS_RUN and expect_reply:
 				socks = dict(poll.poll(REQUEST_TIMEOUT))
 				if socks.get(client) == zmq.POLLIN:
 					reply = client.recv()
 					if reply:
 						try:
-							reply = reply.replace("'", '"')
-							STATE[qm] = json.loads(reply)
+							STATE[qm] = json.loads( reply.replace("'", '"') )
 						except:
-							print("Can't parse JSON for ", qm)
+							pass
+							# print("Can't parse JSON for ", qm)
 							# print(traceback.format_exc())
 						expect_reply = False
 					else:
@@ -146,6 +177,30 @@ def StateLoop(port):
 	context.term()
 
 
+
+def SSDV_DeliverLoop(callsign, out_ssdv_path):
+	'''
+	picks last image from PHOTO_ARR, converts to SSDV and copies to output
+	'''
+	global PHOTO_ARR
+	image_id = 0
+	while(THREADS_RUN):
+		time.sleep(5)
+
+		if not PHOTO_ARR:
+			continue
+
+		if os.path.isfile(out_ssdv_path):
+			print("SSDV_DeliverLoop: Output SSDV still exists.")
+			continue
+
+		ssdv_in = PHOTO_ARR.pop()
+		cmd = '/boot/ssdv -e -c %s -i %d %s %s' % (callsign, image_id, ssdv_in, out_ssdv_path)
+		print(cmd)
+		os.system( cmd )
+		image_id += 1
+
+
 def next_path(i_base, ext = ''): # get next subdir/subfile
 	if ext and ext[0] != '.':
 		ext = '.' + ext
@@ -157,7 +212,6 @@ def next_path(i_base, ext = ''): # get next subdir/subfile
 	return ret
 
 
-CAM_RUN = True
 def CameraLoop(session_dir, opts):
 
 	def seconds_since(since):
@@ -188,17 +242,19 @@ def CameraLoop(session_dir, opts):
 	# camera.bitrate = CFG['video_bitrate']
 
 	global STATE
+	global PHOTO_ARR
 
 	alt = 0
 	dAlt = 0
-	b_stdby_mode = True # in this mode, just one small picture is recorded/sended
+	dAltAvg = 0
+	b_stdby_mode = False # in this mode, just one small picture is recorded/sended
 	stdby_file = os.path.join(session_dir, 'stdby.jpeg')
-	global CAM_RUN
-	while(CAM_RUN):
+	global THREADS_RUN
+	while(THREADS_RUN):
 
 		# in this mode, just one small picture is recorded/sended
 		if b_stdby_mode:
-			print('b_stdby_mode')
+			# print('b_stdby_mode')
 			CAMERA.resolution = (8*16, 4*16)
 			EXIF(CAMERA, STATE)
 			CAMERA.annotate_text = str( int(seconds_since(BOOT_TIME) / 60) )
@@ -217,7 +273,7 @@ def CameraLoop(session_dir, opts):
 
 		# video clip
 		print("Video")
-		video_duration_secs = 10
+		video_duration_secs = int( opts['cam_video_dur'] )
 		snapshot_interval_secs = 3
 		CAMERA.resolution = (1280, 720)
 		CAMERA.start_recording( next_path(video_dir, 'h264'))
@@ -226,24 +282,27 @@ def CameraLoop(session_dir, opts):
 		video_start = utcnow()
 		snapshot_time = utcnow()
 		while seconds_since(video_start) < video_duration_secs:
-			if not CAM_RUN:
+			if not THREADS_RUN:
 				break
 
 			if 'dynamics' in STATE and 'alt' in STATE['dynamics']:
 				alt = 	STATE['dynamics']['alt']['val']
 				dAlt = 	STATE['dynamics']['alt']['dVdT']
-			print(alt, dAlt)
+				dAltAvg = 	STATE['dynamics']['alt']['dVdT_avg']
+				print(alt, dAlt, dAltAvg)
 
 			EXIF(CAMERA, STATE)
 			CAMERA.annotate_text = 'Alt: %d/%.01f m' % (int(alt), dAlt)
 
 			if seconds_since(snapshot_time) > snapshot_interval_secs:
 				print("Photo LO")
-				CAMERA.capture( next_path(photo_lo_dir, 'jpg'), use_video_port = True )
+				PHOTO_ARR.append( next_path(photo_lo_dir, 'jpg') )
+				CAMERA.capture( PHOTO_ARR[-1] , use_video_port = True )
 				snapshot_time = utcnow()
 
 			time.sleep(1)
 
+		print("CAMERA.stop_recording()")
 		CAMERA.stop_recording()
 
 	print('CAMERA.close()')
@@ -251,13 +310,14 @@ def CameraLoop(session_dir, opts):
 
 
 def main():
+	global THREADS_RUN
 	global GLOB
 	GLOB = prog_opts()
 	pprint(GLOB)
 
 	GLOB['cam_dir'] = GLOB['cam_dir'].replace('.', curdir())
 	if not os.path.isdir(GLOB['cam_dir']):
-		raise RuntimeError( "Not a dir " + GLOB['cam_dir'] )
+		os.makedirs(GLOB['cam_dir'])
 
 	session_dir = next_path(GLOB['cam_dir'])
 	cam_process = None
@@ -267,24 +327,22 @@ def main():
 		cam_process.start()
 		state_process = threading.Thread( target= lambda: StateLoop(GLOB['port']) )
 		state_process.start()
+		ssdv_process = threading.Thread( target= lambda: SSDV_DeliverLoop( GLOB['callsign'], GLOB['ssdv']) )
+		ssdv_process.start()
 		while(1):
 			time.sleep(1)
 	except KeyboardInterrupt:
-		global CAM_RUN
-		CAM_RUN = False
-		global STATE_RUN
-		STATE_RUN = False
+		print("CTRL+C")
+		THREADS_RUN = False
 		if cam_process:			cam_process.join()
 		if state_process:		state_process.join()
+		if ssdv_process:		ssdv_process.join()
 	except:
 		print(traceback.format_exc())
-		global CAM_RUN
-		CAM_RUN = False
-		global STATE_RUN
-		STATE_RUN = False
+		THREADS_RUN = False
 		if cam_process:			cam_process.join()
 		if state_process:		state_process.join()
-
+		if ssdv_process:		ssdv_process.join()
 
 
 if __name__ == "__main__":
