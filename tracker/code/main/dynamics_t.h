@@ -14,7 +14,7 @@ private:
     bool    initialised_ = false;
     float   val_ = 0;   // updated on every add()
     float   val_prev_ = 0; // updated after min_dT_
-    tp      val_prev_timestamp_; // timestamp of previous value
+    tp      val_prev_timestamp_; // timestamp of val_prev_ update
     float   val_min_ = std::numeric_limits<float>::max();
     float   val_max_ = -std::numeric_limits<float>::min();
     float   dVdT_ = 0;
