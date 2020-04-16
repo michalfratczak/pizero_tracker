@@ -127,8 +127,6 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 	int sats = 0;
 	float hdop = 0; // Horizontal Dilution of Precision
-	float speedOG = 0;
-	float courseOG = 0;
 	char speedstring[16];
 	char coursestring[16];
 
@@ -199,24 +197,22 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 		if(scanned_positions >= 7)
 		{
-			speedOG = atof(speedstring);
-			courseOG = atof(coursestring);
+			sprintf( o_nmea.utc, "%06d", int(floor(utc)) );
 
 			lat = degree_2_decimal(lat);
 			if(ns == 'S')
 				lat = -lat;
+			o_nmea.lat = lat;
 
 			lon = degree_2_decimal(lon);
 			if(ew == 'W')
 				lon = -lon;
-
-			sprintf( o_nmea.utc, "%06d", int(floor(utc)) );
-			o_nmea.lat = lat;
 			o_nmea.lon = lon;
-			o_nmea.alt = alt;
-			o_nmea.sats = sats;
-			o_nmea.speed_over_ground_mps = speedOG;
-			o_nmea.course_over_ground_deg = courseOG;
+
+			// o_nmea.alt = alt; // there is no alt in RMC
+			// o_nmea.sats = sats; // the is no sats in RMC
+			o_nmea.speed_over_ground_mps = atof(speedstring);
+			o_nmea.course_over_ground_deg = atof(coursestring);
 
 			if(status == 'A')
 				o_nmea.fix_status = nmea_t::fix_status_t::kValid;
