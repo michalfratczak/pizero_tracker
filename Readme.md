@@ -23,3 +23,11 @@ boost program_options
 https://github.com/zeromq/cppzmq/
 
 pip install zmq
+
+sudo apt-get install imagemagick
+
+run on one thread:
+
+```
+taskset -c 1 ./tracker
+```
