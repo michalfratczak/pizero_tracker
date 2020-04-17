@@ -66,6 +66,7 @@ def prog_opts():
 	parser.add_argument('--cam_flip_v', dest='cam_flip_v', action='store', type=int)
 	parser.add_argument('--cam_ssdv_res', dest='cam_ssdv_res', action='store', type=int)
 	parser.add_argument('--cam_video_dur', dest='cam_video_dur', action='store', type=int)
+	parser.add_argument('--cam_snapshot_interval', dest='cam_snapshot_interval', action='store', type=int)
 
 	args = parser.parse_args()
 	ret = {
@@ -88,6 +89,7 @@ def prog_opts():
 	if args.cam_flip_v:		ret['cam_flip_v'] = args.cam_flip_v
 	if args.cam_ssdv_res:	ret['cam_ssdv_res'] = args.cam_ssdv_res
 	if args.cam_video_dur:	ret['cam_video_dur'] = args.cam_video_dur
+	if args.cam_snapshot_interval:	ret['cam_snapshot_interval'] = args.cam_snapshot_interval
 
 	# pprint(ret)
 
@@ -241,10 +243,10 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 			continue
 
 		if os.path.isfile(out_ssdv_path):
-			print("SSDV_DeliverLoop: Output SSDV still exists.")
 			continue
 
 		ssdv_in = PHOTO_ARR.pop()
+		print("Exporting new SSDV image:", ssdv_in)
 		ConvertToSSDV( ssdv_in, out_ssdv_path, res, callsign, image_id)
 		image_id += 1
 
@@ -322,7 +324,7 @@ def CameraLoop(session_dir, opts):
 		# video clip
 		print("Video")
 		video_duration_secs = int( opts['cam_video_dur'] )
-		snapshot_interval_secs = 3
+		snapshot_interval_secs = int( opts['cam_snapshot_interval'] )
 		CAMERA.resolution = (1280, 720)
 		CAMERA.start_recording( next_path(video_dir, 'h264'))
 

@@ -3,6 +3,7 @@
 #include <string>
 #include <chrono>
 #include <limits>
+#include <algorithm>
 
 // record value, min, max, dV/dT, averaged dV/dT
 //

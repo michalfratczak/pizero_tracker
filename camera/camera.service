@@ -1,0 +1,20 @@
+
+# cp ./camera.service /etc/systemd/system/
+# systemctl enable camera.service
+# systemctl start camera.service
+# journalctl -u camera
+
+[Unit]
+Description=piZero tracker camera
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=python /boot/camera.py --config /boot/tracker.cfg
+
+[Install]
+WantedBy=multi-user.target

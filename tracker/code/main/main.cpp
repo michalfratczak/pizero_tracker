@@ -303,8 +303,9 @@ int main1(int argc, char** argv)
 
 		// send SSDV image next packet
 		//
-		if( 	G.gps_fix_age() < 20
-			&& 	G.dynamics_get("alt").dVdT() > -5  // not falling
+		if(		true
+			// &&	G.gps_fix_age() < 20
+			// && 	G.dynamics_get("alt").dVdT_avg() > -5  // not falling
 		)
 		{
 			if( !ssdv_tiles.size() && G.cli.ssdv_image.size() )
