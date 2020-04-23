@@ -267,7 +267,7 @@ int main1(int argc, char** argv)
 
 	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TELEMETRY AND IMAGE
 	//
-	ssdv_t ssdv_tiles;
+	ssdv_t ssdv_packets;
 	int msg_id = 0;
 	while(G_RUN)
 	{
@@ -308,18 +308,18 @@ int main1(int argc, char** argv)
 			// && 	G.dynamics_get("alt").dVdT_avg() > -5  // not falling
 		)
 		{
-			if( !ssdv_tiles.size() && G.cli.ssdv_image.size() )
-				cout<<"SSDV loaded "<<	ssdv_tiles.load_file( G.cli.ssdv_image )	<<" packets from disk."<<endl;
+			if( !ssdv_packets.size() && G.cli.ssdv_image.size() )
+				cout<<"SSDV loaded "<<	ssdv_packets.load_file( G.cli.ssdv_image )	<<" packets from disk."<<endl;
 
-			if( ssdv_tiles.size() )
+			if( ssdv_packets.size() )
 			{
-				auto tile = ssdv_tiles.next_tile();
-				cout<<"Send SSDV @RF. Left tiles: "<<ssdv_tiles.size()<<endl;
+				auto tile = ssdv_packets.next_packet();
+				cout<<"Send SSDV @RF. Left tiles: "<<ssdv_packets.size()<<endl;
 				// for(int i=0; i<256; ++i)
 				// 	cout<<" 0x"<<hex<<(int)(tile[i]);
 				// cout<<dec<<endl;
 				mtx2_write( radio_fd, tile.data(), sizeof(tile) );
-				if(!ssdv_tiles.size())	// delete image when done
+				if(!ssdv_packets.size())	// delete image when done
 					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
 			}
 		}

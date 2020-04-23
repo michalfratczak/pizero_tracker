@@ -9,7 +9,7 @@ size_t ssdv_t::load_file(const std::string file_path)
     if(!p_file)
         return 0;
 
-    tile_t tile;
+    packet_t tile;
     memset(tile.data(), 0x00, sizeof(tile));
     size_t total_tiles = 0;
     while(1)
@@ -22,9 +22,9 @@ size_t ssdv_t::load_file(const std::string file_path)
     }
 }
 
-ssdv_t::tile_t ssdv_t::next_tile()
+ssdv_t::packet_t ssdv_t::next_packet()
 {
-    tile_t tile = tiles_que_.front();
+    packet_t tile = tiles_que_.front();
     tiles_que_.pop_front();
     return tile;
 }
