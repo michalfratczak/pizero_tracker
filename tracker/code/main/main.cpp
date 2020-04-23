@@ -219,7 +219,7 @@ int main1(int argc, char** argv)
 					GLOB::get().nmea_set(current_nmea);
 					GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
 					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
-					cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
+					// cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
 				}
 			}
 		}
@@ -314,7 +314,10 @@ int main1(int argc, char** argv)
 			if( ssdv_tiles.size() )
 			{
 				auto tile = ssdv_tiles.next_tile();
-				cout<<"Send SSDV @RF"<<endl;
+				cout<<"Send SSDV @RF. Left tiles: "<<ssdv_tiles.size()<<endl;
+				// for(int i=0; i<256; ++i)
+				// 	cout<<" 0x"<<hex<<(int)(tile[i]);
+				// cout<<dec<<endl;
 				mtx2_write( radio_fd, tile.data(), sizeof(tile) );
 				if(!ssdv_tiles.size())	// delete image when done
 					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );

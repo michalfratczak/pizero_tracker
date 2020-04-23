@@ -1,6 +1,7 @@
 #include "ssdv_t.h"
 
 #include <iostream>
+#include <cstring>
 
 size_t ssdv_t::load_file(const std::string file_path)
 {
@@ -9,10 +10,11 @@ size_t ssdv_t::load_file(const std::string file_path)
         return 0;
 
     tile_t tile;
+    memset(tile.data(), 0x00, sizeof(tile));
     size_t total_tiles = 0;
     while(1)
     {
-        const size_t read_bytes = fread( tile.data(), sizeof(char), 256, p_file );
+        const size_t read_bytes = fread( tile.data(), 1, sizeof(tile), p_file );
         if(!read_bytes)
             return  total_tiles;
         tiles_que_.push_back(tile);
