@@ -394,5 +394,10 @@ def main():
 
 
 if __name__ == "__main__":
+	try:
+		import setproctitle
+		setproctitle.setproctitle('camera.py')
+	except:
+		pass
 	main()
 	# ConvertToSSDV(sys.argv[-2], sys.argv[-1], 512, 'fro', 0)
