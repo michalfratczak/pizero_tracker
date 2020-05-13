@@ -155,6 +155,7 @@ int main1(int argc, char** argv)
 	signal(SIGINT, CTRL_C);
 	signal(SIGTERM, CTRL_C);
 
+
     // RADIO
     //
 	gpioSetPullUpDown( 	G.cli.hw_pin_radio_on, PI_PUD_DOWN );
@@ -265,10 +266,20 @@ int main1(int argc, char** argv)
 	});
 
 
+	// read last emited message ID and resume from that number
+	int msg_id = 0;
+	FILE* msgid_fh = fopen("./tracker.msgid", "r");
+	if(msgid_fh) {
+		fscanf(msgid_fh, "%d", &msg_id);
+		fclose(msgid_fh);
+		cout<<"Resume message ID "<<msg_id<<endl;
+	}
+	msgid_fh = fopen("./tracker.msgid", "w");
+
+
 	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TELEMETRY AND IMAGE
 	//
 	ssdv_t ssdv_packets;
-	int msg_id = 0;
 	while(G_RUN)
 	{
 		// telemetry. G.cli.msg_num sentences before SSDV
@@ -298,6 +309,12 @@ int main1(int argc, char** argv)
 			// emit telemetry msg @RF
 			//
 			mtx2_write(radio_fd, msg_with_crc + '\n');
+
+			// write last emited message ID
+			if(msgid_fh) {
+				rewind(msgid_fh);
+				fprintf(msgid_fh, "%08d", msg_id);
+			}
 		}
 
 
@@ -328,6 +345,8 @@ int main1(int argc, char** argv)
 
 	// RELEASE RESOURCES
 	//
+	if(msgid_fh)
+		fclose(msgid_fh);
 	cout<<"Closing sensors thread"<<endl;
 	sensors_thread.join();
 	cout<<"Closing uBlox I2C thread and device"<<endl;
