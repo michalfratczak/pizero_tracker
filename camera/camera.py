@@ -202,11 +202,14 @@ def StateLoop(port):
 					reply = client.recv()
 					if reply:
 						try:
-							STATE[qm] = json.loads( reply.replace("'", '"') )
+							reply_data = json.loads( reply.replace("'", '"') )
+							STATE[qm] = reply_data
+							# print("reply_data:")
+							# pprint(reply_data)
 						except:
-							pass
-							# print("Can't parse JSON for ", qm)
-							# print(traceback.format_exc())
+							print("Can't parse JSON for ", qm)
+							print(reply)
+							print(traceback.format_exc())
 						expect_reply = False
 					else:
 						break
@@ -399,5 +402,13 @@ if __name__ == "__main__":
 		setproctitle.setproctitle('camera.py')
 	except:
 		pass
-	main()
+
+	while 1:
+		try:
+			main()
+		except KeyboardInterrupt:
+			break
+		except:
+			print( traceback.format_exc() )
+			time.sleep(1)
 	# ConvertToSSDV(sys.argv[-2], sys.argv[-1], 512, 'fro', 0)
