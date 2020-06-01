@@ -16,10 +16,17 @@ size_t ssdv_t::load_file(const std::string file_path)
     {
         const size_t read_bytes = fread( tile.data(), 1, sizeof(tile), p_file );
         if(!read_bytes)
-            return  total_tiles;
+            break;
         tiles_que_.push_back(tile);
         ++total_tiles;
     }
+
+    if(!total_tiles) {  // could not load this file. delete it.
+        std::cout<<"SSDV Failed loading "<<file_path<<std::endl;
+        system( (std::string("rm -f ") + file_path + " || echo \"Can't delete SSDV image.\"").c_str() );
+    }
+
+    return  total_tiles;
 }
 
 ssdv_t::packet_t ssdv_t::next_packet()

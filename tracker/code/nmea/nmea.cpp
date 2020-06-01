@@ -289,7 +289,7 @@ std::string nmea_t::json() const
 
 	s<<"{";
 
-	s<<"'utc':"<<utc<<sep;
+	s<<"'utc':'"<<utc<<"'"<<sep;
 	s<<"'lat':"<<lat<<sep;
 	s<<"'lon':"<<lon<<sep;
 	s<<"'alt':"<<alt<<sep;
@@ -307,15 +307,15 @@ std::string nmea_t::json() const
 	if( fix_quality == nmea_t::fix_quality_t::kNoFix )
 		s<<"'Q':'kNoFix'";
 	else if( fix_quality == nmea_t::fix_quality_t::kAutonomous )
-		s<<"'Q:kAutonomous'";
+		s<<"'Q':'kAutonomous'";
 	else if( fix_quality == nmea_t::fix_quality_t::kDifferential )
-		s<<"'Q:kDifferential'";
+		s<<"'Q':'kDifferential'";
 	else if( fix_quality == nmea_t::fix_quality_t::kRtkFixed )
-		s<<"'Q:kRtkFixed'";
+		s<<"'Q':'kRtkFixed'";
 	else if( fix_quality == nmea_t::fix_quality_t::kRtkFloat )
-		s<<"'Q:kRtkFloat'";
+		s<<"'Q':'kRtkFloat'";
 	else if( fix_quality == nmea_t::fix_quality_t::kEstimated )
-		s<<"'Q:kEstimated'";
+		s<<"'Q':'kEstimated'";
 
 	s<<"}";
 
