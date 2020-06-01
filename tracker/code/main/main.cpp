@@ -204,6 +204,9 @@ int main1(int argc, char** argv)
 
 			nmea_t current_nmea;
 			// REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
+			// 	if currently parsed NMEA string has valid lat/lon/alt
+			// 	they will be stored in current_nmea
+			// 	otherwise we keep last valid
 			const nmea_t  valid_nmea = GLOB::get().nmea_get();
 			current_nmea.lat = valid_nmea.lat;
 			current_nmea.lon = valid_nmea.lon;
