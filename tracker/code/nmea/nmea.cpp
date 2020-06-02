@@ -211,7 +211,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 			// o_nmea.alt = alt; // there is no alt in RMC
 			// o_nmea.sats = sats; // the is no sats in RMC
-			o_nmea.speed_over_ground_mps = atof(speedstring);
+			o_nmea.speed_over_ground_mps = 0.514444444 * atof(speedstring); // knots to m/s
 			o_nmea.course_over_ground_deg = atof(coursestring);
 
 			if(status == 'A')
