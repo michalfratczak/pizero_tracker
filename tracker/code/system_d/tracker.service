@@ -15,6 +15,7 @@ Restart=always
 RestartSec=1
 User=root
 ExecStart=/boot/tracker --config /boot/tracker.cfg
+WorkingDirectory=/boot
 
 [Install]
 WantedBy=multi-user.target
