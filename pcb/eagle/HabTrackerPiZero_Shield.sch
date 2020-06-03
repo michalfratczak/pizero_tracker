@@ -6327,6 +6327,7 @@ http://www.toby.co.uk/content/catalogue/products.aspx?series=REF-18xxxx-0x</desc
 <sheets>
 <sheet>
 <plain>
+<text x="101.6" y="99.06" size="1.778" layer="91">3.3v switching reg Pololu 2872</text>
 </plain>
 <instances>
 <instance part="U$3" gate="G$1" x="233.68" y="78.74" smashed="yes" rot="R270">
@@ -6342,9 +6343,9 @@ http://www.toby.co.uk/content/catalogue/products.aspx?series=REF-18xxxx-0x</desc
 <attribute name="NAME" x="100.33" y="103.505" size="1.778" layer="95"/>
 <attribute name="VALUE" x="107.95" y="119.38" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="BATT" gate="G$1" x="101.6" y="88.9" smashed="yes" rot="R180">
-<attribute name="NAME" x="118.11" y="83.185" size="1.778" layer="95" rot="R180"/>
-<attribute name="VALUE" x="107.95" y="93.98" size="1.778" layer="96" rot="R180"/>
+<instance part="BATT" gate="G$1" x="101.6" y="81.28" smashed="yes" rot="R180">
+<attribute name="NAME" x="118.11" y="75.565" size="1.778" layer="95" rot="R180"/>
+<attribute name="VALUE" x="107.95" y="86.36" size="1.778" layer="96" rot="R180"/>
 </instance>
 <instance part="UBLOX" gate="A" x="-53.34" y="96.52" smashed="yes">
 <attribute name="NAME" x="-59.69" y="104.775" size="1.778" layer="95"/>
@@ -6403,8 +6404,8 @@ http://www.toby.co.uk/content/catalogue/products.aspx?series=REF-18xxxx-0x</desc
 </segment>
 <segment>
 <pinref part="BATT" gate="G$1" pin="2"/>
-<wire x1="104.14" y1="88.9" x2="114.3" y2="91.44" width="0.1524" layer="91"/>
-<label x="114.3" y="91.44" size="1.778" layer="95" xref="yes"/>
+<wire x1="104.14" y1="81.28" x2="114.3" y2="83.82" width="0.1524" layer="91"/>
+<label x="114.3" y="83.82" size="1.778" layer="95" xref="yes"/>
 </segment>
 <segment>
 <pinref part="U$2" gate="G$1" pin="GND"/>
@@ -6567,8 +6568,8 @@ http://www.toby.co.uk/content/catalogue/products.aspx?series=REF-18xxxx-0x</desc
 </segment>
 <segment>
 <pinref part="BATT" gate="G$1" pin="1"/>
-<wire x1="104.14" y1="86.36" x2="114.3" y2="86.36" width="0.1524" layer="91"/>
-<label x="114.3" y="86.36" size="1.778" layer="95" xref="yes"/>
+<wire x1="104.14" y1="78.74" x2="114.3" y2="78.74" width="0.1524" layer="91"/>
+<label x="114.3" y="78.74" size="1.778" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="N$7" class="0">
