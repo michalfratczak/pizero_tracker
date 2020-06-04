@@ -104,6 +104,8 @@ int main1(int argc, char** argv)
 {
     using namespace std;
 
+	const auto START_TIME = chrono::steady_clock::now(); // used to measure running time
+
 	// command line interface
 	CLI(argc, argv);
 
@@ -305,6 +307,9 @@ int main1(int argc, char** argv)
 			tlmtr_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
 			// Sensors:
 			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("temp_int").val();
+			// runtime
+			const auto runtime_secs = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - START_TIME).count();
+			tlmtr_stream<<","<<static_cast<int>(runtime_secs);
 			// CRC:
 			const string msg_with_crc = string("\0",1) + "$$$" + tlmtr_stream.str() + '*' + CRC(tlmtr_stream.str());
 			cout<<C_GREEN<<msg_with_crc<<C_OFF<<endl;
