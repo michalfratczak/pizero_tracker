@@ -276,6 +276,7 @@ int main1(int argc, char** argv)
 	FILE* msgid_fh = fopen("./tracker.msgid", "r");
 	if(msgid_fh) {
 		fscanf(msgid_fh, "%d", &msg_id);
+		msg_id += 10; // on power failure, last msg_id could be not written to disk
 		fclose(msgid_fh);
 		cout<<"Resume message ID "<<msg_id<<endl;
 	}
