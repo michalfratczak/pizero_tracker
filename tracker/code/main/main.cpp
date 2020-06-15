@@ -7,6 +7,8 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <future>
+#include <atomic>
 
 #include "pigpio.h"
 #include <zmq.hpp>
@@ -27,6 +29,10 @@ const char* C_OFF =   		"\033[0m";
 
 bool G_RUN = true; // keep threads running
 
+// value written to /dev/watchdog
+// '1' enables watchdog
+// 'V' disables watchdog
+std::atomic_char G_WATCHDOG_V{'1'};
 
 char _hex(char Character)
 {
@@ -93,8 +99,37 @@ zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 }
 
 
+void watchdog_reset()
+{
+	char v = G_WATCHDOG_V.load();
+	// std::cout<<"watchdog_reset "<<v<<std::endl;
+	// return;
+
+	FILE* f = fopen("/dev/watchdog", "w");
+	if(f) {
+		fwrite(&v, sizeof(char), 1, f);
+		fclose(f);
+	}
+}
+
+void watchdog_disable()
+{
+	G_WATCHDOG_V.store('V'); // disable
+	char v = G_WATCHDOG_V.load();
+	// std::cout<<"watchdog_disable "<<v<<std::endl;
+	// return;
+
+	FILE* f = fopen("/dev/watchdog", "w");
+	if(f) {
+		fwrite(&v, sizeof(char), 1, f);
+		fclose(f);
+	}
+}
+
+
 void CTRL_C(int sig)
 {
+	watchdog_disable();
 	std::cout<<"CTRL+C"<<std::endl;
 	G_RUN = false;
 }
@@ -282,7 +317,6 @@ int main1(int argc, char** argv)
 	}
 	msgid_fh = fopen("./tracker.msgid", "w");
 
-
 	// READ SENSORS, CONSTRUCT TELEMETRY MESSAGE, RF SEND TELEMETRY AND IMAGE
 	//
 	ssdv_t ssdv_packets;
@@ -317,7 +351,11 @@ int main1(int argc, char** argv)
 
 			// emit telemetry msg @RF
 			//
-			mtx2_write(radio_fd, msg_with_crc + '\n');
+			// mtx2_write(radio_fd, msg_with_crc + '\n');
+			auto mtx2_write_future = std::async( std::launch::async, [&]{
+												 mtx2_write(radio_fd, msg_with_crc + '\n'); } );
+			while( mtx2_write_future.wait_for(chrono::milliseconds(250)) != future_status::ready )
+				watchdog_reset();
 
 			// write last emited message ID
 			if(msgid_fh) {
@@ -344,7 +382,12 @@ int main1(int argc, char** argv)
 				// for(int i=0; i<256; ++i)
 				// 	cout<<" 0x"<<hex<<(int)(tile[i]);
 				// cout<<dec<<endl;
-				mtx2_write( radio_fd, tile.data(), sizeof(tile) );
+				// mtx2_write( radio_fd, tile.data(), sizeof(tile) );
+				auto mtx2_write_future = std::async( std::launch::async, [&]{
+													 mtx2_write( radio_fd, tile.data(), sizeof(tile) ); } );
+				while( mtx2_write_future.wait_for(chrono::milliseconds(250)) != future_status::ready )
+					watchdog_reset();
+
 				if(!ssdv_packets.size())	// delete image when done
 					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
 			}
