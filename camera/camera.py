@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 from __future__ import print_function
 import os, sys, string
 import argparse
@@ -46,14 +46,14 @@ def RunCmd(cmd):
 def config_file_read(fName):
 	with open(fName) as f:
 		lines = f.readlines()
-		lines = map(string.strip, lines)
-		lines = filter(lambda x: not x.startswith('#'), lines)
+		lines = map(str.strip, lines)
+		lines = list(filter(lambda x: not x.startswith('#'), lines))
 		while '' in lines:
 			lines.remove('')
 		# lines = filter(lambda x: x.startswith('port') or x.startswith('cam_'), lines)
 		lines = map(lambda x: x.split('#')[0], lines)
 		key_vals = map( lambda x: x.split('=', 1), lines )
-		key_vals = map( lambda x: [ string.strip(x[0]), string.strip(x[1]) ], key_vals )
+		key_vals = map( lambda x: [ str.strip(x[0]), str.strip(x[1]) ], key_vals )
 		return key_vals
 
 
@@ -193,7 +193,7 @@ def StateLoop(port):
 		time.sleep(1)
 		for qm in query_msgs:
 			# print("\n\nSending (%s)" % qm)
-			client.send(qm)
+			client.send_string(qm)
 
 			expect_reply = True
 			while THREADS_RUN and expect_reply:
@@ -202,10 +202,9 @@ def StateLoop(port):
 					reply = client.recv()
 					if reply:
 						try:
-							reply_data = json.loads( reply.replace("'", '"') )
+							json_str = reply.decode("utf-8").replace("'", '"')
+							reply_data = json.loads( json_str )
 							STATE[qm] = reply_data
-							# print("reply_data:")
-							# pprint(reply_data)
 						except:
 							print("Can't parse JSON for ", qm)
 							print(reply)
@@ -258,10 +257,10 @@ def next_path(i_base, ext = ''): # get next subdir/subfile
 	if ext and ext[0] != '.':
 		ext = '.' + ext
 	i = 1
-	ret = os.path.join(i_base, string.zfill(i, 6)) + ext
+	ret = os.path.join(i_base, str(i).zfill(6)) + ext
 	while os.path.exists(ret):
 		i += 1
-		ret = os.path.join(i_base, string.zfill(i, 6)) + ext
+		ret = os.path.join(i_base, str(i).zfill(6)) + ext
 	return ret
 
 
