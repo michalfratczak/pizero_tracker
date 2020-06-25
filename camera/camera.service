@@ -14,7 +14,7 @@ Type=simple
 Restart=always
 RestartSec=1
 User=root
-ExecStart=python /boot/camera.py --config /boot/tracker.cfg
+ExecStart=python3 /boot/camera.py --config /boot/tracker.cfg
 
 [Install]
 WantedBy=multi-user.target

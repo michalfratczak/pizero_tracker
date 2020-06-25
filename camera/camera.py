@@ -13,6 +13,7 @@ from pprint import pprint, pformat
 import zmq
 import picamera
 import exifread
+import psutil
 from datetime import datetime
 utcnow = datetime.utcnow
 
@@ -284,13 +285,12 @@ def CameraLoop(session_dir, opts):
 	# setup camera
 	#
 	CAMERA = picamera.PiCamera()
-	CAMERA.start_preview()
 	CAMERA.exposure_mode = 'auto'
 	CAMERA.meter_mode = 'matrix'
 	CAMERA.hflip = opts['cam_flip_h']
 	CAMERA.vflip = opts['cam_flip_v']
 	CAMERA.still_stats = True
-	CAMERA.start_preview()
+	# CAMERA.start_preview()
 	# camera.bitrate = CFG['video_bitrate']
 
 	global STATE
@@ -299,22 +299,18 @@ def CameraLoop(session_dir, opts):
 	alt = 0
 	dAlt = 0
 	dAltAvg = 0
-	b_stdby_mode = False # in this mode, just one small picture is recorded/sended
 	stdby_file = os.path.join(session_dir, 'stdby.jpeg')
 	global THREADS_RUN
 	while(THREADS_RUN):
 
-		# in this mode, just one small picture is recorded/sended
-		if b_stdby_mode:
-			# print('b_stdby_mode')
-			CAMERA.resolution = (8*16, 4*16)
-			SetCameraExif(CAMERA, STATE)
-			CAMERA.annotate_text = str( int(seconds_since(BOOT_TIME) / 60) )
-			CAMERA.capture( stdby_file )
-			time.sleep(5)
+		disk_use_percent = int( psutil.disk_usage('/').percent )
+		if disk_use_percent > 95:
+			CAMERA.stop_preview()
+			print("Free disk space left: ", disk_use_percent, '% . Waiting.')
+			time.sleep(60)
 			continue
-		else:
-			os.system( 'rm -f %s || echo "Cant remove stdby.jpeg"' % stdby_file )
+
+		CAMERA.start_preview()
 
 		# full res photo
 		print("Photo HI")
@@ -335,6 +331,12 @@ def CameraLoop(session_dir, opts):
 		snapshot_time = utcnow()
 		while seconds_since(video_start) < video_duration_secs:
 			if not THREADS_RUN:
+				break
+
+			disk_use_percent = int( psutil.disk_usage('/').percent )
+			if disk_use_percent > 95:
+				CAMERA.stop_preview()
+				print("Free disk low - abort camera.")
 				break
 
 			if 'dynamics' in STATE and 'alt' in STATE['dynamics']:
