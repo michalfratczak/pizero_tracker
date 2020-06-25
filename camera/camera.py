@@ -238,7 +238,16 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 	picks last image from PHOTO_ARR, converts to SSDV and copies to output
 	'''
 	global PHOTO_ARR
+
+	# SSDV Image ID. Try getting last used number from file
 	image_id = 0
+	try:
+		with open('./camera.ssdv_id') as fh:
+			image_id = 1 + int(fh.read())
+			image_id = image_id % 256
+	except:
+		pass
+
 	while(THREADS_RUN):
 		time.sleep(5)
 
@@ -252,6 +261,14 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 		print("Exporting new SSDV image:", ssdv_in)
 		ConvertToSSDV( ssdv_in, out_ssdv_path, res, callsign, image_id)
 		image_id += 1
+		image_id = image_id % 256
+		try:
+			with open('./camera.ssdv_id', 'w') as fh:
+				fh.write(str(image_id))
+		except:
+			print(traceback.format_exc())
+			print('Failed writing last SSDV ID to file.')
+			pass
 
 
 def next_path(i_base, ext = ''): # get next subdir/subfile
@@ -296,10 +313,11 @@ def CameraLoop(session_dir, opts):
 	global STATE
 	global PHOTO_ARR
 
+	snapshot_time = datetime.fromtimestamp(0)
+
 	alt = 0
 	dAlt = 0
 	dAltAvg = 0
-	stdby_file = os.path.join(session_dir, 'stdby.jpeg')
 	global THREADS_RUN
 	while(THREADS_RUN):
 
@@ -328,7 +346,6 @@ def CameraLoop(session_dir, opts):
 
 		# wait and update annotation and EXIF
 		video_start = utcnow()
-		snapshot_time = utcnow()
 		while seconds_since(video_start) < video_duration_secs:
 			if not THREADS_RUN:
 				break

@@ -36,3 +36,4 @@
 .vscode/*
 pcb/eagle/.HabTrackerPiZero_Shield.brd.lck
 pcb/eagle/.HabTrackerPiZero_Shield.sch.lck
+camera/camera.ssdv_id
