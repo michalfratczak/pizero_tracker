@@ -333,3 +333,11 @@ int nmea_t::utc_as_seconds() const
 	const int total_seconds = S + 60*M + 60*60*H;
 	return total_seconds;
 }
+
+bool nmea_t::valid() const
+{
+	// only one at a time can be valid.
+	// fix_status is from RMC, fix_quality is from GGA
+	return 		fix_status  == fix_status_t::kValid
+			or 	fix_quality != fix_quality_t::kNoFix;
+}

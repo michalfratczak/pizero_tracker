@@ -12,6 +12,10 @@ std::string GLOB::str() const
     s<<"\tbaud="<<static_cast<int>(cli.baud)<<"\n";
     s<<"\tssdv_image="<<cli.ssdv_image<<"\n";
     s<<"\tmsg_num="<<cli.msg_num<<"\n";
+    s<<"\tlat="<<cli.lat<<"\n";
+    s<<"\tlon="<<cli.lon<<"\n";
+    s<<"\talt="<<cli.alt<<"\n";
+    s<<"\ttestgps="<<cli.testgps<<"\n";
     s<<"\tport="<<cli.port<<"\n";
     s<<"\thw_pin_radio_on="<<cli.hw_pin_radio_on<<"\n";
     s<<"\thw_radio_serial="<<cli.hw_radio_serial<<"\n";

@@ -13,6 +13,7 @@ set (tracker_src
 	dynamics_t.h dynamics_t.cpp
 	ssdv_t.cpp
 	main.cpp
+	gps_distance_t.h gps_distance_t.cpp
 	../mtx2/mtx2.cpp
 	../nmea/nmea.cpp
 	../ublox/ublox_cmds.cpp

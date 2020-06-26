@@ -39,6 +39,7 @@ public:
 	std::string json() const;
 
 	int utc_as_seconds() const;	// convert utc HHMMSS to seconds
+	bool valid() const;
 };
 
 

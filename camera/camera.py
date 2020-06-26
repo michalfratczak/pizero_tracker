@@ -186,8 +186,7 @@ def StateLoop(port):
 	client.connect(SERVER_ENDPOINT)
 	poll = zmq.Poller()
 	poll.register(client, zmq.POLLIN)
-	query_msgs = ['nmea', 'dynamics']
-
+	query_msgs = ['nmea', 'dynamics', 'flight_state']
 
 	retries_left = REQUEST_RETRIES
 	while THREADS_RUN and retries_left:
@@ -228,7 +227,7 @@ def StateLoop(port):
 					client = context.socket(zmq.REQ)
 					client.connect(SERVER_ENDPOINT)
 					poll.register(client, zmq.POLLIN)
-					client.send(qm)
+					client.send_string(qm)
 	context.term()
 
 
@@ -325,6 +324,12 @@ def CameraLoop(session_dir, opts):
 		if disk_use_percent > 95:
 			CAMERA.stop_preview()
 			print("Free disk space left: ", disk_use_percent, '% . Waiting.')
+			time.sleep(60)
+			continue
+
+		if 'flight_state' in STATE and STATE['flight_state']['flight_state'] == 'kLanded':
+			CAMERA.stop_preview()
+			print("flight_state::klanded - stop camera and wait.")
 			time.sleep(60)
 			continue
 

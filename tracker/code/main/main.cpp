@@ -9,6 +9,8 @@
 #include <chrono>
 #include <future>
 #include <atomic>
+#include <functional>
+#include <math.h>
 
 #include "pigpio.h"
 #include <zmq.hpp>
@@ -21,6 +23,7 @@
 #include "ssdv_t.h"
 #include "cli.h"
 #include "GLOB.h"
+#include "gps_distance_t.h"
 
 const char* C_RED = 		"\033[1;31m";
 const char* C_GREEN = 		"\033[1;32m";
@@ -91,6 +94,22 @@ zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
 		return reply;
 	}
+	else if(i_msg_str == "flight_state")	{
+		std::string reply_str("{'flight_state':");
+		switch( G.flight_state_get() )
+		{
+			case flight_state_t::kUnknown:		reply_str += "'kUnknown'";		break;
+			case flight_state_t::kStandBy:		reply_str += "'kStandBy'";		break;
+			case flight_state_t::kAscend:		reply_str += "'kAscend'";		break;
+			case flight_state_t::kDescend:		reply_str += "'kDescend'";		break;
+			case flight_state_t::kFreefall:		reply_str += "'kFreefall'";		break;
+			case flight_state_t::kLanded:		reply_str += "'kLanded'";		break;
+		}
+		reply_str += "}";
+		zmq::message_t reply( reply_str.size() );
+		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
+		return reply;
+	}
 	else {
 		zmq::message_t reply( 7 );
 		memcpy( (void*) reply.data(), "UNKNOWN", 7 );
@@ -138,8 +157,6 @@ void CTRL_C(int sig)
 int main1(int argc, char** argv)
 {
     using namespace std;
-
-	const auto START_TIME = chrono::steady_clock::now(); // used to measure running time
 
 	// command line interface
 	CLI(argc, argv);
@@ -227,11 +244,10 @@ int main1(int argc, char** argv)
 	sleep(1);
 
 
-	// uBLOX thread
+	// uBLOX loop
 	//
-	std::thread ublox_thread( [uBlox_i2c_fd]() {
+	auto ublox_loop = [uBlox_i2c_fd]() {
 		while(G_RUN) {
-			// std::this_thread::sleep_for( std::chrono::seconds(5) );
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd); // typical blocking time: 0/1/1.2 seconds
 			const string nmea_str = NMEA_get_last_msg(ublox_data.data(), ublox_data.size());
 			// cout<<nmea_str<<endl;
@@ -250,21 +266,52 @@ int main1(int argc, char** argv)
 			current_nmea.lon = valid_nmea.lon;
 			current_nmea.alt = valid_nmea.alt;
 
-			if( NMEA_parse(nmea_str.c_str(), current_nmea) ) {
-				// only one at a time can be valid.
-				// fix_status is from RMC, fix_quality is from GGA
-				const bool gps_fix_valid =
-								current_nmea.fix_status  == nmea_t::fix_status_t::kValid
-							|| 	current_nmea.fix_quality != nmea_t::fix_quality_t::kNoFix;
-				if(gps_fix_valid) {
-					GLOB::get().nmea_set(current_nmea);
-					GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
-					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
-					// cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
-				}
+			if( NMEA_parse(nmea_str.c_str(), current_nmea) and current_nmea.valid() ) {
+				GLOB::get().nmea_set(current_nmea);
+				GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
+				GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
+				// cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
 			}
 		}
-	});
+	};
+
+	// fake GPS loop - usefull for testing
+	//
+	auto fake_gps_loop = [uBlox_i2c_fd]() {
+		cout<<"Using FAKE GPS Coordinates !!!"<<endl;
+		while(G_RUN) {
+			const nmea_t  valid_nmea = GLOB::get().nmea_get();
+			nmea_t  current_nmea;
+			current_nmea.lat = valid_nmea.lat;
+			current_nmea.lon = valid_nmea.lon;
+			current_nmea.alt = valid_nmea.alt;
+			current_nmea.fix_status = nmea_t::fix_status_t::kValid;
+
+			if( GLOB::get().runtime_secs_ > 30 ) {
+				current_nmea.lat = GLOB::get().cli.lat + 0.0001 * (GLOB::get().runtime_secs_ - 30);
+				current_nmea.lon = GLOB::get().cli.lon + 0.0001 * (GLOB::get().runtime_secs_ - 30);
+				current_nmea.alt = GLOB::get().cli.alt + 35000.0 * abs(sin(3.1415 * float(GLOB::get().runtime_secs_-30) / 300));
+			}
+			else {
+				current_nmea.lat = GLOB::get().cli.lat;
+				current_nmea.lon = GLOB::get().cli.lon;
+				current_nmea.alt = GLOB::get().cli.alt;
+			}
+			GLOB::get().nmea_set(current_nmea);
+			GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
+			GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
+
+			this_thread::sleep_for(chrono::seconds(1));
+		}
+	};
+
+
+	// GPS thread. uBLOX or faked
+	//
+	function<void()> gps_loop(ublox_loop);
+	if(G.cli.testgps)
+		gps_loop = function<void()>(fake_gps_loop);
+	std::thread ublox_thread( gps_loop );
 
 
     // DS18B20 temp sensor
@@ -286,6 +333,39 @@ int main1(int argc, char** argv)
 			const float temp_int = read_temp_from_ds18b20(ds18b20_device);
 			GLOB::get().dynamics_add("temp_int", std::chrono::steady_clock::now(), temp_int);
 			this_thread::sleep_for( chrono::seconds(15) );
+		}
+	});
+
+	// Flight State Thread
+	// try guessing one of these states: kUnknown, kStandBy, kAscend, kDescend, kFreefall, kLanded
+	//
+	std::thread flight_state_thread( []() {
+		const auto START_TIME = chrono::steady_clock::now(); // used to measure running time
+		while(G_RUN) {
+			this_thread::sleep_for( chrono::seconds(1) );
+
+			GLOB::get().runtime_secs_ = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - START_TIME).count();
+			const nmea_t nmea = GLOB::get().nmea_get();
+			const auto dist_from_home = calc_gps_distance( nmea.lat, nmea.lon, nmea.alt,
+										GLOB::get().cli.lat,  GLOB::get().cli.lon, 0);
+			const auto alt = GLOB::get().dynamics_get("alt");
+			const auto dAltAvg = alt.dVdT_avg();
+
+			flight_state_t flight_state = flight_state_t::kUnknown;
+			if(nmea.valid()) {
+				if( abs(dist_from_home.dist_line_) < 200 and abs(dAltAvg) <= 3 )
+					flight_state = flight_state_t::kStandBy;
+				else if(dAltAvg < -8)
+					flight_state = flight_state_t::kFreefall;
+				else if(dAltAvg < -3)
+					flight_state = flight_state_t::kDescend;
+				else if(dAltAvg > 3)
+					flight_state = flight_state_t::kAscend;
+				else if( abs(dist_from_home.dist_line_) > 2000 and abs(dAltAvg) <= 3 and alt.val() < 2000 )
+					flight_state = flight_state_t::kLanded;
+			}
+			cout<<alt.val()<<" "<<alt.dVdT()<<" "<<alt.dVdT_avg()<<" "<<dist_from_home.dist_line_<<endl;
+			GLOB::get().flight_state_set( flight_state );
 		}
 	});
 
@@ -324,7 +404,7 @@ int main1(int argc, char** argv)
 	{
 		// telemetry. G.cli.msg_num sentences before SSDV
 		//
-		for(int __mi=0; __mi<G.cli.msg_num && G_RUN; ++__mi)
+		for(int __mi=0; __mi<G.cli.msg_num and G_RUN; ++__mi)
 		{
 			++msg_id;
 
@@ -332,19 +412,38 @@ int main1(int argc, char** argv)
 			const nmea_t valid_nmea = G.nmea_get();
 
 			// TELEMETRY MESSAGE
+			//
 			stringstream  tlmtr_stream;
+
 			// Callsign, ID, UTC:
 			tlmtr_stream<<G.cli.callsign;
 			tlmtr_stream<<","<<msg_id;
 			tlmtr_stream<<","<<valid_nmea.utc;
+
 			// !! ONLY VALID LAT,LON,ALT ARE BEING SENT. LOOK INTO uBLOX THREAD.
 			tlmtr_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
 			tlmtr_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
+
+			// runtime
+			tlmtr_stream<<","<<static_cast<int>(GLOB::get().runtime_secs_);
+
 			// Sensors:
 			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("temp_int").val();
-			// runtime
-			const auto runtime_secs = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - START_TIME).count();
-			tlmtr_stream<<","<<static_cast<int>(runtime_secs);
+
+			// average dAlt/dT
+			tlmtr_stream<<","<<setprecision(1)<<fixed<<G.dynamics_get("alt").dVdT_avg();
+
+			// flight state
+			switch( G.flight_state_get() )
+			{
+				case flight_state_t::kUnknown:		tlmtr_stream<<",U";		break;
+				case flight_state_t::kStandBy:		tlmtr_stream<<",S";		break;
+				case flight_state_t::kAscend:		tlmtr_stream<<",A";		break;
+				case flight_state_t::kDescend:		tlmtr_stream<<",D";		break;
+				case flight_state_t::kFreefall:		tlmtr_stream<<",F";		break;
+				case flight_state_t::kLanded:		tlmtr_stream<<",L";		break;
+			}
+
 			// CRC:
 			const string msg_with_crc = string("\0",1) + "$$$" + tlmtr_stream.str() + '*' + CRC(tlmtr_stream.str());
 			cout<<C_GREEN<<msg_with_crc<<C_OFF<<endl;
@@ -367,12 +466,9 @@ int main1(int argc, char** argv)
 
 		// send SSDV image next packet
 		//
-		if(		true
-			// &&	G.gps_fix_age() < 20
-			// && 	G.dynamics_get("alt").dVdT_avg() > -5  // not falling
-		)
+		if( G.flight_state_get() != flight_state_t::kFreefall and G.flight_state_get() != flight_state_t::kLanded )
 		{
-			if( !ssdv_packets.size() && G.cli.ssdv_image.size() )
+			if( !ssdv_packets.size() and G.cli.ssdv_image.size() )
 				cout<<"SSDV loaded "<<	ssdv_packets.load_file( G.cli.ssdv_image )	<<" packets from disk."<<endl;
 
 			if( ssdv_packets.size() )
@@ -400,17 +496,23 @@ int main1(int argc, char** argv)
 	if(msgid_fh)
 		fclose(msgid_fh);
 	cout<<"Closing sensors thread"<<endl;
-	sensors_thread.join();
+	if( sensors_thread.joinable() )
+		sensors_thread.join();
 	cout<<"Closing uBlox I2C thread and device"<<endl;
-	ublox_thread.join();
+	if( ublox_thread.joinable() )
+		ublox_thread.join();
     close(uBlox_i2c_fd);
+	cout<<"Closing flight state thread"<<endl;
+	if( flight_state_thread.joinable() )
+		flight_state_thread.join();
 	cout<<"Closing UART Radio device"<<endl;
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
 	cout<<"Closing gpio"<<endl;
 	gpioTerminate();
 	cout<<"Closing zmq thread"<<endl;
-	zmq_thread.join(); // will return after next received message, or stuck forever if no messages comes in
+	if( zmq_thread.joinable() )
+		zmq_thread.join(); // will return after next received message, or stuck forever if no messages comes in
 
 
     return 0;

@@ -11,8 +11,18 @@
 #include "dynamics_t.h"
 
 
-// global options - singleton
+enum class flight_state_t : int
+{
+	kUnknown = 0,
+	kStandBy = 1, // near launch position and average abs(dAlt/dTime) < 3 m/s
+	kAscend = 2,  // average dAlt/dTime > 3 m/s
+	kDescend = 3, // average dAlt/dTime < -3 m/s
+	kFreefall = 4, // average abs(dAlt/dTime) < -8 m/s
+	kLanded = 5 // far from launch position and average abs(dAlt/dTime) < 3 m/s and alt<2000
+};
 
+
+// global options - singleton
 class GLOB
 {
 
@@ -26,6 +36,9 @@ private:
 
     // sensors dynamics
     std::map<std::string, dynamics_t>    dynamics_; // index: value name (alt, temp1, etc.)
+
+    // flight state
+    std::atomic<flight_state_t>  flight_state_{flight_state_t::kUnknown};
 
 public:
     static GLOB& get()
@@ -42,6 +55,10 @@ public:
         std::string     ssdv_image;     // ssdv encoded image path
         int             msg_num = 5;    // number of telemetry sentences emitted between SSDV packets
         int             port = 6666;    // zeroMQ server port
+        float           lat = 0;    // launch site latitude deg
+        float           lon = 0;    // launch site longitude deg
+        float           alt = 0;    // launch site altitude meters
+        bool            testgps = false;  // generate fake GPS for testing
 
         // hardware config
         int             hw_pin_radio_on = 0;    // gpio numbered pin for radio enable. current board: 22
@@ -59,6 +76,12 @@ public:
 
     void gps_fix_now() { gps_fix_timestamp_ = std::chrono::steady_clock::now(); }
     int  gps_fix_age() const { return (std::chrono::steady_clock::now() - gps_fix_timestamp_).count() / 1e9; }
+
+    void flight_state_set(const flight_state_t flight_state) { get().flight_state_ = flight_state; }
+    flight_state_t flight_state_get() const { return get().flight_state_; }
+
+    // runtime seconds
+    long long runtime_secs_ = 0;
 
     std::string str() const;
 
