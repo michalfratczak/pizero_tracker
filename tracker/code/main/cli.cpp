@@ -25,6 +25,7 @@ void CLI(int ac, char* av[])
             ("ssdv",	po::value<string>(),    "ssdv encoded image path")
             ("msg_num",	po::value<int>(),       "number of telemetry sentences emitted between SSDV packets")
             ("port",	po::value<int>(),       "zeroMQ server port")
+            ("logsdir", po::value<string>(),    "logs dir")
             ("hw_pin_radio_on",	po::value<int>(),       "gpio numbered pin for radio enable. current board: 22")
             ("hw_radio_serial",	po::value<string>(),    "serial device for MTX2 radio. for rPI4: /dev/serial0")
             ("hw_ublox_device",	po::value<string>(),    "I2C device for uBLOX. for rPI4: /dev/i2c-7")
@@ -72,6 +73,7 @@ void CLI(int ac, char* av[])
         if (vm.count("freq"))               GLOB::get().cli.freqMHz =           vm["freq"].as<float>();
         if (vm.count("msg_num"))            GLOB::get().cli.msg_num =           vm["msg_num"].as<int>();
         if (vm.count("port"))               GLOB::get().cli.port =              vm["port"].as<int>();
+        if (vm.count("logsdir"))            GLOB::get().cli.logsdir =           vm["logsdir"].as<string>();
         if (vm.count("hw_pin_radio_on"))    GLOB::get().cli.hw_pin_radio_on =   vm["hw_pin_radio_on"].as<int>();
         if (vm.count("hw_radio_serial"))    GLOB::get().cli.hw_radio_serial =   vm["hw_radio_serial"].as<string>();
         if (vm.count("hw_ublox_device"))    GLOB::get().cli.hw_ublox_device =   vm["hw_ublox_device"].as<string>();

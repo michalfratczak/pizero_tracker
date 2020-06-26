@@ -53,6 +53,7 @@ public:
         float           freqMHz = 0;    //MegaHertz
         baud_t          baud = baud_t::kInvalid;
         std::string     ssdv_image;     // ssdv encoded image path
+        std::string     logsdir{"./"};        // logs dirs
         int             msg_num = 5;    // number of telemetry sentences emitted between SSDV packets
         int             port = 6666;    // zeroMQ server port
         float           lat = 0;    // launch site latitude deg
@@ -82,6 +83,7 @@ public:
 
     // runtime seconds
     long long runtime_secs_ = 0;
+    std::string runtime_str() const; // return runtime in format HH:MM:SS
 
     std::string str() const;
 

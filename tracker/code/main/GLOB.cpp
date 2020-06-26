@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 
 std::string GLOB::str() const
 {
@@ -17,6 +18,7 @@ std::string GLOB::str() const
     s<<"\talt="<<cli.alt<<"\n";
     s<<"\ttestgps="<<cli.testgps<<"\n";
     s<<"\tport="<<cli.port<<"\n";
+    s<<"\tlogsdir="<<cli.logsdir<<"\n";
     s<<"\thw_pin_radio_on="<<cli.hw_pin_radio_on<<"\n";
     s<<"\thw_radio_serial="<<cli.hw_radio_serial<<"\n";
     s<<"\thw_ublox_device="<<cli.hw_ublox_device<<"\n";
@@ -55,4 +57,20 @@ std::vector<std::string> GLOB::dynamics_keys() const
     for(const auto& k : dynamics_)
         ret.push_back(k.first);
     return ret;
+}
+
+std::string GLOB::runtime_str() const
+{
+    using namespace std;
+
+    const auto run_secs = runtime_secs_;
+    const int secs = run_secs % 60;
+    const int minutes = ((run_secs - secs) / 60) % 60;
+    const int hours = ((run_secs - secs - 60*minutes) / 3600) % 12;
+
+    stringstream  ss;
+    ss  <<setfill('0')<<setw(2)<<hours
+        <<":"<<setfill('0')<<setw(2)<<minutes
+        <<":"<<setfill('0')<<setw(2)<<secs;
+    return ss.str();
 }

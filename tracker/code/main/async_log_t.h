@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "GLOB.h"
+
 class async_log_t
 {
 private:
@@ -28,7 +30,7 @@ public:
             if(!insert_ok)
                 return false;
         }
-        log_stream->second.push_back(msg);
+        log_stream->second.push_back( GLOB::get().runtime_str() + " " + msg);
         return true;
     }
 
@@ -51,6 +53,10 @@ public:
             of.close();
         }
     }
+
+    std::string logs_dir() const { return base_dir_; }
+    void logs_dir(const std::string& bdir) { base_dir_ = bdir; }
+
 };
 
 /*
