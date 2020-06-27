@@ -25,6 +25,7 @@
 #include "GLOB.h"
 #include "gps_distance_t.h"
 #include "async_log_t.h"
+#include "pulse_t.h"
 
 const char* C_RED = 		"\033[1;31m";
 const char* C_GREEN = 		"\033[1;32m";
@@ -136,7 +137,7 @@ void watchdog_disable()
 {
 	G_WATCHDOG_V.store('V'); // disable
 	char v = G_WATCHDOG_V.load();
-	// std::cout<<"watchdog_disable "<<v<<std::endl;
+	std::cout<<"watchdog_disable "<<v<<std::endl;
 	// return;
 
 	FILE* f = fopen("/dev/watchdog", "w");
@@ -201,6 +202,8 @@ int main1(int argc, char** argv)
 	LOG.logs_dir(G.cli.logsdir);
 	LOG.log("main.log", "___START___");
 
+	pulse_t PULSE;
+
 	LOG.log("main.log", "sudo modprobe w1-gpio");
 	system("sudo modprobe w1-gpio");
 
@@ -253,8 +256,10 @@ int main1(int argc, char** argv)
 
 	// uBLOX loop
 	//
-	auto ublox_loop = [uBlox_i2c_fd, &LOG]() {
+	auto ublox_loop = [uBlox_i2c_fd, &LOG, &PULSE]() {
 		while(G_RUN) {
+			PULSE.ping("uBLOX");
+
 			const vector<char> ublox_data = uBLOX_read_msg(uBlox_i2c_fd); // typical blocking time: 0/1/1.2 seconds
 			const string nmea_str = NMEA_get_last_msg(ublox_data.data(), ublox_data.size());
 			// cout<<nmea_str<<endl;
@@ -338,7 +343,7 @@ int main1(int argc, char** argv)
 	// ALL SENSORS THREAD
 	//
 	LOG.log("main.log", "SENSORS thread start");
-	std::thread sensors_thread( [ds18b20_device]() {
+	std::thread sensors_thread( [ds18b20_device, &PULSE]() {
 		while(G_RUN) {
 			// internal temp
 			const float temp_int = read_temp_from_ds18b20(ds18b20_device);
@@ -351,9 +356,10 @@ int main1(int argc, char** argv)
 	// try guessing one of these states: kUnknown, kStandBy, kAscend, kDescend, kFreefall, kLanded
 	//
 	LOG.log("main.log", "flight state thread start");
-	std::thread flight_state_thread( []() {
+	std::thread flight_state_thread( [&PULSE]() {
 		const auto START_TIME = chrono::steady_clock::now(); // used to measure running time
 		while(G_RUN) {
+			PULSE.ping("flight_state");
 			this_thread::sleep_for( chrono::seconds(1) );
 
 			GLOB::get().runtime_secs_ = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - START_TIME).count();
@@ -392,6 +398,32 @@ int main1(int argc, char** argv)
     });
 
 
+	// PULSE watch thread
+	// if any of other threads doesn't ping at least once 10 seconds
+	// stop reseting hardware watchdog -> REBOOT
+	//
+	const bool use_watchdog = G.cli.watchdog;
+	std::thread pulse_watch_thread([&LOG, &PULSE, use_watchdog]() {
+		if(not use_watchdog)
+			return;
+		LOG.log("main.log", "PULSE watch thread start");
+        while(G_RUN) {
+			this_thread::sleep_for(chrono::seconds(3));
+			auto age_proc = PULSE.get_oldest_ping_age();
+			float age_secs = float(std::get<0>(age_proc)) / 1e6;
+			std::string proc = std::get<1>(age_proc);
+			if(age_secs<15) {
+				watchdog_reset();
+			} else {
+				cout<<"PULSE: WATCHDOG RESET HOLD !!! process:"<<proc<<" age:"<<age_secs<<endl;
+				LOG.log("pulse.log", proc + " " + std::to_string(age_secs));
+				LOG.save();
+			}
+		}
+		watchdog_disable();
+    });
+
+
 	// ZeroMQ server
 	LOG.log("main.log", "ZeroMQ thread start");
 	zmq::context_t zmq_context(1);
@@ -424,22 +456,17 @@ int main1(int argc, char** argv)
 	//
 	LOG.log("main.log", "main loop");
 	ssdv_t ssdv_packets;
-	while(G_RUN)
-	{
-		// telemetry. G.cli.msg_num sentences before SSDV
+	while(G_RUN) {
+		// TELEMETRY MESSAGE
 		//
-		for(int __mi=0; __mi<G.cli.msg_num and G_RUN; ++__mi)
-		{
+		for(int __mi=0; __mi<G.cli.msg_num and G_RUN; ++__mi) {
 			++msg_id;
+			PULSE.ping("main");
 
-			// GPS data
-			const nmea_t valid_nmea = G.nmea_get();
-
-			// TELEMETRY MESSAGE
-			//
 			stringstream  tlmtr_stream;
 
 			// Callsign, ID, UTC:
+			const nmea_t valid_nmea = G.nmea_get();
 			tlmtr_stream<<G.cli.callsign;
 			tlmtr_stream<<","<<msg_id;
 			tlmtr_stream<<","<<valid_nmea.utc;
@@ -475,12 +502,10 @@ int main1(int argc, char** argv)
 			LOG.log("sentences.log", msg_with_crc);
 
 			// emit telemetry msg @RF
-			//
-			// mtx2_write(radio_fd, msg_with_crc + '\n');
 			auto mtx2_write_future = std::async( std::launch::async, [&]{
 												 mtx2_write(radio_fd, msg_with_crc + '\n'); } );
-			while( mtx2_write_future.wait_for(chrono::milliseconds(250)) != future_status::ready )
-				watchdog_reset();
+			while( mtx2_write_future.wait_for(chrono::milliseconds(500)) != future_status::ready )
+				PULSE.ping("main");
 
 			// write last emited message ID
 			if(msgid_fh) {
@@ -492,19 +517,18 @@ int main1(int argc, char** argv)
 
 		// send SSDV image next packet
 		//
-		if( G.flight_state_get() != flight_state_t::kFreefall and G.flight_state_get() != flight_state_t::kLanded )
-		{
+		if( G.flight_state_get() != flight_state_t::kFreefall and G.flight_state_get() != flight_state_t::kLanded ) {
 			if( !ssdv_packets.size() and G.cli.ssdv_image.size() )
 				cout<<"SSDV loaded "<<	ssdv_packets.load_file( G.cli.ssdv_image )	<<" packets from disk."<<endl;
 
-			if( ssdv_packets.size() )
-			{
+			if( ssdv_packets.size() ) {
+				PULSE.ping("main");
 				auto tile = ssdv_packets.next_packet();
 				cout<<"Send SSDV @RF. Left tiles: "<<ssdv_packets.size()<<endl;
 				auto mtx2_write_future = std::async( std::launch::async, [&]{
 													 mtx2_write( radio_fd, tile.data(), sizeof(tile) ); } );
-				while( mtx2_write_future.wait_for(chrono::milliseconds(250)) != future_status::ready )
-					watchdog_reset();
+				while( mtx2_write_future.wait_for(chrono::milliseconds(500)) != future_status::ready )
+					PULSE.ping("main");
 
 				if(!ssdv_packets.size())	// delete image when done
 					system( (string("rm -f ") + G.cli.ssdv_image + " || echo \"Can't delete SSDV image.\"").c_str() );
@@ -515,28 +539,36 @@ int main1(int argc, char** argv)
 
 	// RELEASE RESOURCES
 	//
+	watchdog_disable();
 	LOG.log("main.log", "release resources, close threads");
 
 	if(msgid_fh)
 		fclose(msgid_fh);
+
 	cout<<"Closing sensors thread"<<endl;
 	if( sensors_thread.joinable() )
 		sensors_thread.join();
+
 	cout<<"Closing uBlox I2C thread and device"<<endl;
 	if( ublox_thread.joinable() )
 		ublox_thread.join();
     close(uBlox_i2c_fd);
+
 	cout<<"Closing flight state thread"<<endl;
 	if( flight_state_thread.joinable() )
 		flight_state_thread.join();
+
 	cout<<"Closing UART Radio device"<<endl;
 	close(radio_fd);
 	gpioWrite (G.cli.hw_pin_radio_on, 0);
+
 	cout<<"Closing gpio"<<endl;
 	gpioTerminate();
+
 	cout<<"Closing logs thread"<<endl;
 	if(log_save_thread.joinable())
 		log_save_thread.join();
+
 	cout<<"Closing zmq thread"<<endl;
 	if( zmq_thread.joinable() )
 		zmq_thread.join(); // will return after next received message, or stuck forever if no messages comes in

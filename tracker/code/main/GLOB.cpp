@@ -17,6 +17,7 @@ std::string GLOB::str() const
     s<<"\tlon="<<cli.lon<<"\n";
     s<<"\talt="<<cli.alt<<"\n";
     s<<"\ttestgps="<<cli.testgps<<"\n";
+    s<<"\twatchdog="<<cli.watchdog<<"\n";
     s<<"\tport="<<cli.port<<"\n";
     s<<"\tlogsdir="<<cli.logsdir<<"\n";
     s<<"\thw_pin_radio_on="<<cli.hw_pin_radio_on<<"\n";

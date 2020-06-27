@@ -29,8 +29,9 @@ void CLI(int ac, char* av[])
             ("hw_pin_radio_on",	po::value<int>(),       "gpio numbered pin for radio enable. current board: 22")
             ("hw_radio_serial",	po::value<string>(),    "serial device for MTX2 radio. for rPI4: /dev/serial0")
             ("hw_ublox_device",	po::value<string>(),    "I2C device for uBLOX. for rPI4: /dev/i2c-7")
-            ("latlonalt",	po::value< std::vector<float> >()->multitoken(), "Launch site GPS location (decimal) and alt meters")
-            ("testgps",	po::value<bool>(),      "Generate fake GPS for testing")
+            ("latlonalt",	po::value< std::vector<float> >()->multitoken(), "launch site GPS location (decimal) and alt meters")
+            ("testgps",	    po::value<bool>(),  "generate fake GPS for testing")
+            ("watchdog",	po::value<bool>(),  "enable watchdog")
             ;
 
         po::options_description cli_options("Command Line Interface options");
@@ -80,6 +81,7 @@ void CLI(int ac, char* av[])
         if (vm.count("ssdv"))               GLOB::get().cli.ssdv_image =        vm["ssdv"].as<string>();
         if (vm.count("baud"))               GLOB::get().cli.baud = static_cast<baud_t>( vm["baud"].as<int>() );
         if (vm.count("testgps"))            GLOB::get().cli.testgps =           vm["testgps"].as<bool>();
+        if (vm.count("watchdog"))            GLOB::get().cli.watchdog =           vm["watchdog"].as<bool>();
         if (vm.count("latlonalt")) {
             vector<float> latlonalt_vec = vm["latlonalt"].as< vector<float> >();
             GLOB::get().cli.lat = latlonalt_vec[0];

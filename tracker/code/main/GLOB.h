@@ -59,7 +59,8 @@ public:
         float           lat = 0;    // launch site latitude deg
         float           lon = 0;    // launch site longitude deg
         float           alt = 0;    // launch site altitude meters
-        bool            testgps = false;  // generate fake GPS for testing
+        bool            testgps = false;   // generate fake GPS for testing
+        bool            watchdog = false;  // enable watchdog
 
         // hardware config
         int             hw_pin_radio_on = 0;    // gpio numbered pin for radio enable. current board: 22
