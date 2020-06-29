@@ -28,6 +28,8 @@ git clone https://github.com/zeromq/cppzmq.git
 
 build with cmake
 
+http://abyz.me.uk/rpi/pigpio/download.html
+
 pip install zmq exifread
 
 sudo apt-get install imagemagick
