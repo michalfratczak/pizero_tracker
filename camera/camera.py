@@ -337,7 +337,7 @@ def CameraLoop(session_dir, opts):
 
 		# full res photo
 		print("Photo HI")
-		CAMERA.resolution = (2592, 1944)
+		CAMERA.resolution = (3280, 2464)
 		SetCameraExif(CAMERA, STATE)
 		CAMERA.annotate_text = ''
 		CAMERA.capture( next_path(photo_hi_dir, 'jpeg'))
