@@ -24,7 +24,9 @@ git clone https://github.com/zeromq/libzmq.git
 
 build with cmake
 
-https://github.com/zeromq/cppzmq/
+git clone https://github.com/zeromq/cppzmq.git
+
+build with cmake
 
 pip install zmq exifread
 
