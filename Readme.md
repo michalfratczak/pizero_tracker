@@ -20,6 +20,10 @@ dependencies
 
 boost program_options
 
+git clone https://github.com/zeromq/libzmq.git
+
+build with cmake
+
 https://github.com/zeromq/cppzmq/
 
 pip install zmq exifread
