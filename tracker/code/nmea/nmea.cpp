@@ -31,6 +31,8 @@ int NMEA_checksum(const char* buff, const size_t buff_sz)
 
 bool NMEA_msg_checksum_ok(const char* msg, const size_t msg_sz)
 {
+	if(msg_sz<5)
+		return false;
 	int chck = NMEA_checksum(msg+1, msg_sz-4); // without $, up to *
 	char chck_str[2];
 	sprintf(chck_str, "%02X", chck);
