@@ -5,7 +5,10 @@ You need to use software driver to I2c, and therefore, disable bluetooth. This i
 [https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3-or-later-model]
 
 ```
-/boot/config.txt
+sudo rpi-update
+
+nano /boot/config.txt
+
 dtoverlay=pi3-disable-bt
 enable_uart=1
 dtoverlay=w1-gpio
