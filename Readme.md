@@ -30,7 +30,7 @@ build with cmake
 
 http://abyz.me.uk/rpi/pigpio/download.html
 
-pip install zmq exifread
+pip3 install zmq exifread
 
 sudo apt-get install imagemagick
 
