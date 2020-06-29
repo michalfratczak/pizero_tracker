@@ -33,7 +33,7 @@ build with cmake
 
 http://abyz.me.uk/rpi/pigpio/download.html
 
-pip3 install zmq exifread
+pip3 install zmq exifread picamera psutil
 
 sudo apt-get install imagemagick
 
