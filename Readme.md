@@ -18,7 +18,7 @@ dtoverlay=i2c-gpio,i2c_gpio_sda=2,i2c_gpio_scl=3
 
 dependencies
 
-boost program_options
+sudo apt-get install libboost-program-options-dev
 
 git clone https://github.com/zeromq/libzmq.git
 
