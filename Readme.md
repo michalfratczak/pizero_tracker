@@ -20,6 +20,11 @@ dtoverlay=i2c-gpio,i2c_gpio_sda=2,i2c_gpio_scl=3
 
 
 ## Dependencies
+
+SSDV:
+
+git submodule update --init --recursive
+
 ---
 sudo apt-get install libboost-program-options-dev
 
