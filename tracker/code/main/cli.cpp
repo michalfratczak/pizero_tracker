@@ -5,7 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include "glob.h"
+#include "GLOB.h"
 
 #include <boost/program_options.hpp>
 

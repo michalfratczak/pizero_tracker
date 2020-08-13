@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.4.2">
+<eagle version="9.6.2">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -1629,7 +1629,7 @@ design rules under a new name.</description>
 <param name="PrefDir.13" value="0"/>
 <param name="PrefDir.14" value="0"/>
 <param name="PrefDir.15" value="0"/>
-<param name="PrefDir.16" value="0"/>
+<param name="PrefDir.16" value="a"/>
 <param name="cfVia" value="8"/>
 <param name="cfNonPref" value="5"/>
 <param name="cfChangeDir" value="2"/>
@@ -1704,9 +1704,9 @@ design rules under a new name.</description>
 </pass>
 </autorouter>
 <elements>
-<element name="3V3_REGULATOR" library="pinhead" library_urn="urn:adsk.eagle:library:325" package="1X03" package3d_urn="urn:adsk.eagle:package:22458/2" value="3.3" x="27.94" y="11.43" smashed="yes">
-<attribute name="POPULARITY" value="92" x="53.34" y="-36.83" size="1.778" layer="27" display="off"/>
-<attribute name="VALUE" x="31.75" y="9.525" size="1.27" layer="27"/>
+<element name="3V3_REGULATOR" library="pinhead" library_urn="urn:adsk.eagle:library:325" package="1X03" package3d_urn="urn:adsk.eagle:package:22458/2" value="3.3" x="29.94" y="11.43" smashed="yes">
+<attribute name="POPULARITY" value="92" x="55.34" y="-36.83" size="1.778" layer="27" display="off"/>
+<attribute name="VALUE" x="31.75" y="13.525" size="1.27" layer="27"/>
 </element>
 <element name="BATT" library="pinhead" library_urn="urn:adsk.eagle:library:325" package="1X02" package3d_urn="urn:adsk.eagle:package:22435/2" value="5" x="21.59" y="22.86" smashed="yes" rot="R90">
 <attribute name="POPULARITY" value="98" x="69.85" y="67.31" size="1.778" layer="27" rot="R90" display="off"/>
@@ -1780,9 +1780,6 @@ design rules under a new name.</description>
 <wire x1="50.8" y1="29.21" x2="54.61" y2="33.02" width="0.508" layer="16"/>
 <wire x1="43.815" y1="29.21" x2="50.8" y2="29.21" width="0.508" layer="16"/>
 <wire x1="54.61" y1="33.02" x2="54.77" y2="33.39" width="0.508" layer="16"/>
-<wire x1="27.94" y1="22.86" x2="27.94" y2="11.43" width="0.508" layer="16"/>
-<wire x1="23.495" y1="22.86" x2="27.94" y2="22.86" width="0.508" layer="16"/>
-<wire x1="22.225" y1="24.13" x2="23.495" y2="22.86" width="0.508" layer="16"/>
 <wire x1="72.39" y1="33.02" x2="68.58" y2="29.21" width="0.508" layer="16"/>
 <wire x1="68.58" y1="29.21" x2="67.31" y2="27.94" width="0.508" layer="16"/>
 <wire x1="72.39" y1="33.02" x2="72.55" y2="33.39" width="0.508" layer="16"/>
@@ -1799,19 +1796,21 @@ design rules under a new name.</description>
 <wire x1="59.055" y1="29.21" x2="55.245" y2="33.02" width="0.508" layer="16"/>
 <wire x1="68.58" y1="29.21" x2="59.055" y2="29.21" width="0.508" layer="16"/>
 <wire x1="55.245" y1="33.02" x2="54.77" y2="33.39" width="0.508" layer="16"/>
+<wire x1="29.6672" y1="16.6624" x2="29.6672" y2="11.7856" width="0.508" layer="16"/>
+<wire x1="22.352" y1="23.9776" x2="29.6672" y2="16.6624" width="0.508" layer="16"/>
+<wire x1="29.6672" y1="11.7856" x2="29.94" y2="11.43" width="0.508" layer="16"/>
+<wire x1="22.352" y1="23.9776" x2="21.59" y2="24.13" width="0.508" layer="16"/>
 <polygon width="0.1524" layer="1">
-<vertex x="13.97" y="41.91"/>
-<vertex x="13.97" y="6.35"/>
-<vertex x="83.82" y="6.35"/>
-<vertex x="85.09" y="7.62"/>
-<vertex x="85.09" y="41.91"/>
+<vertex x="15" y="42"/>
+<vertex x="15" y="7"/>
+<vertex x="82" y="7"/>
+<vertex x="82" y="42"/>
 </polygon>
 <polygon width="0.1524" layer="16">
-<vertex x="13.97" y="41.91"/>
-<vertex x="13.97" y="6.35"/>
-<vertex x="83.82" y="6.35"/>
-<vertex x="85.09" y="7.62"/>
-<vertex x="85.09" y="41.91"/>
+<vertex x="14" y="43"/>
+<vertex x="14" y="6"/>
+<vertex x="83" y="6"/>
+<vertex x="83" y="43"/>
 </polygon>
 </signal>
 <signal name="SDA">
@@ -1926,21 +1925,24 @@ design rules under a new name.</description>
 <wire x1="44.45" y1="24.765" x2="42.545" y2="24.765" width="0.508" layer="16"/>
 <wire x1="45.085" y1="24.765" x2="48.26" y2="27.94" width="0.508" layer="16"/>
 <wire x1="44.45" y1="24.765" x2="45.085" y2="24.765" width="0.508" layer="16"/>
-<wire x1="30.48" y1="21.59" x2="30.48" y2="11.43" width="0.508" layer="16"/>
 <wire x1="39.37" y1="21.59" x2="34.29" y2="21.59" width="0.508" layer="16"/>
-<wire x1="34.29" y1="21.59" x2="30.48" y2="21.59" width="0.508" layer="16"/>
 <wire x1="34.29" y1="21.59" x2="34.29" y2="24.13" width="0.508" layer="16"/>
 <wire x1="34.29" y1="24.13" x2="34.29" y2="26.67" width="0.508" layer="16"/>
 <wire x1="24.765" y1="24.13" x2="24.765" y2="33.02" width="0.508" layer="16"/>
 <wire x1="34.29" y1="24.13" x2="24.765" y2="24.13" width="0.508" layer="16"/>
 <wire x1="24.765" y1="33.02" x2="24.29" y2="33.39" width="0.508" layer="16"/>
+<wire x1="32.512" y1="19.9136" x2="32.512" y2="11.7856" width="0.508" layer="16"/>
+<wire x1="34.1376" y1="21.5392" x2="32.512" y2="19.9136" width="0.508" layer="16"/>
+<wire x1="32.512" y1="11.7856" x2="32.48" y2="11.43" width="0.508" layer="16"/>
+<wire x1="34.1376" y1="21.5392" x2="34.29" y2="21.59" width="0.508" layer="16"/>
 </signal>
 <signal name="5V">
 <contactref element="3V3_REGULATOR" pad="1"/>
 <contactref element="BATT" pad="1"/>
-<wire x1="25.4" y1="20.955" x2="25.4" y2="11.43" width="0.508" layer="16"/>
-<wire x1="22.225" y1="20.955" x2="25.4" y2="20.955" width="0.508" layer="16"/>
-<wire x1="21.59" y1="21.59" x2="22.225" y2="20.955" width="0.508" layer="16"/>
+<wire x1="21.9456" y1="17.0688" x2="21.9456" y2="21.5392" width="0.508" layer="1"/>
+<wire x1="27.2288" y1="11.7856" x2="21.9456" y2="17.0688" width="0.508" layer="1"/>
+<wire x1="21.9456" y1="21.5392" x2="21.59" y2="21.59" width="0.508" layer="1"/>
+<wire x1="27.2288" y1="11.7856" x2="27.4" y2="11.43" width="0.508" layer="1"/>
 </signal>
 <signal name="N$7">
 <contactref element="R5" pad="2"/>
