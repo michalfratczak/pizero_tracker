@@ -78,8 +78,16 @@ std::string CRC(std::string i_str)
 zmq::message_t make_zmq_reply(const std::string& i_msg_str)
 {
 	auto& G = GLOB::get();
-	if(i_msg_str == "nmea")	{
-		std::string reply_str = G.nmea_get().json();
+	if(i_msg_str == "nmea_current")	{
+		std::string reply_str = G.nmea_current().json();
+		reply_str.pop_back();
+		reply_str += ",'fixAge':" + std::to_string(G.gps_fix_age()) + "}";
+		zmq::message_t reply( reply_str.size() );
+		memcpy( (void*) reply.data(), reply_str.c_str(), reply_str.size() );
+		return reply;
+	}
+	else if(i_msg_str == "nmea_last_valid") {
+		std::string reply_str = G.nmea_last_valid().json();
 		reply_str.pop_back();
 		reply_str += ",'fixAge':" + std::to_string(G.gps_fix_age()) + "}";
 		zmq::message_t reply( reply_str.size() );
@@ -270,6 +278,7 @@ int main1(int argc, char** argv)
 			LOG.log("nmea.log", nmea_str);
 
 			nmea_t current_nmea;
+			/*
 			// REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
 			// 	if currently parsed NMEA string has valid lat/lon/alt
 			// 	they will be stored in current_nmea
@@ -278,11 +287,12 @@ int main1(int argc, char** argv)
 			current_nmea.lat = valid_nmea.lat;
 			current_nmea.lon = valid_nmea.lon;
 			current_nmea.alt = valid_nmea.alt;
+			*/
 
-			if( NMEA_parse(nmea_str.c_str(), current_nmea) and current_nmea.valid() ) {
+			if( NMEA_parse(nmea_str.c_str(), current_nmea) /*and current_nmea.valid()*/ ) {
 				GLOB::get().nmea_set(current_nmea);
-				GLOB::get().gps_fix_now(); // typical time since uBlox msg read to here is under 1 millisecond
-				GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
+				if (current_nmea.valid())
+					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
 				// cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
 			}
 		}
@@ -293,7 +303,7 @@ int main1(int argc, char** argv)
 	auto fake_gps_loop = [uBlox_i2c_fd]() {
 		cout<<"Using FAKE GPS Coordinates !!!"<<endl;
 		while(G_RUN) {
-			const nmea_t  valid_nmea = GLOB::get().nmea_get();
+			const nmea_t  valid_nmea = GLOB::get().nmea_current();
 			nmea_t  current_nmea;
 			current_nmea.lat = valid_nmea.lat;
 			current_nmea.lon = valid_nmea.lon;
@@ -363,7 +373,7 @@ int main1(int argc, char** argv)
 			this_thread::sleep_for( chrono::seconds(1) );
 
 			GLOB::get().runtime_secs_ = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - START_TIME).count();
-			const nmea_t nmea = GLOB::get().nmea_get();
+			const nmea_t nmea = GLOB::get().nmea_last_valid();
 			const auto dist_from_home = calc_gps_distance( nmea.lat, nmea.lon, nmea.alt,
 										GLOB::get().cli.lat,  GLOB::get().cli.lon, 0);
 			const auto alt = GLOB::get().dynamics_get("alt");
@@ -466,14 +476,14 @@ int main1(int argc, char** argv)
 			stringstream  tlmtr_stream;
 
 			// Callsign, ID, UTC:
-			const nmea_t valid_nmea = G.nmea_get();
+			const nmea_t current_nmea = G.nmea_current();
 			tlmtr_stream<<G.cli.callsign;
 			tlmtr_stream<<","<<msg_id;
-			tlmtr_stream<<","<<valid_nmea.utc;
+			tlmtr_stream<<","<<current_nmea.utc;
 
 			// !! ONLY VALID LAT,LON,ALT ARE BEING SENT. LOOK INTO uBLOX THREAD.
-			tlmtr_stream<<","<<valid_nmea.lat<<","<<valid_nmea.lon<<","<<valid_nmea.alt;
-			tlmtr_stream<<","<<valid_nmea.sats<<","<<GLOB::get().gps_fix_age();
+			tlmtr_stream<<","<<current_nmea.lat<<","<<current_nmea.lon<<","<<current_nmea.alt;
+			tlmtr_stream<<","<<current_nmea.sats<<","<<GLOB::get().gps_fix_age();
 
 			// runtime
 			tlmtr_stream<<","<<static_cast<int>(GLOB::get().runtime_secs_);

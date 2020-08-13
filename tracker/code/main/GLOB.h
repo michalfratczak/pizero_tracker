@@ -32,6 +32,7 @@ private:
     GLOB& operator=( const GLOB& ) = delete; // non copyable
 
     std::atomic<nmea_t> nmea_; // GPS data
+    std::atomic<nmea_t> nmea_last_valid_; // GPS data - last valid
     std::chrono::steady_clock::time_point gps_fix_timestamp_;
 
     // sensors dynamics
@@ -73,8 +74,16 @@ public:
     dynamics_t  dynamics_get(const std::string& name) const;
     std::vector<std::string>  dynamics_keys() const; // names in dynamics_
 
-    void    nmea_set(const nmea_t& in_nmea) { get().nmea_ = in_nmea; }
-    nmea_t  nmea_get() { nmea_t ret = get().nmea_; return ret; }
+    void nmea_set(const nmea_t& in_nmea) {
+        get().nmea_ = in_nmea;
+        if(in_nmea.valid()) {
+            get().nmea_last_valid_ = in_nmea;
+            get().gps_fix_now();
+        }
+    }
+
+    nmea_t  nmea_current() { nmea_t ret = get().nmea_; return ret; }
+    nmea_t  nmea_last_valid()   { nmea_t ret = get().nmea_last_valid_; return ret; }
 
     void gps_fix_now() { gps_fix_timestamp_ = std::chrono::steady_clock::now(); }
     int  gps_fix_age() const { return (std::chrono::steady_clock::now() - gps_fix_timestamp_).count() / 1e9; }
