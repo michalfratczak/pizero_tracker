@@ -82,7 +82,7 @@ public:
 
     bool    initialised() const { return initialised_; }
 
-    void    add(const tp timestamp, const float val); // utc_seconds is HHMMSS converted to seconds. return true if sample was accepted
+    void    add(const tp timestamp, const float val);
 
     float   val()   const { return val_; }
     float   min()   const { return val_min_; }

@@ -7,7 +7,6 @@
 #include <algorithm>
 
 
-// utc_seconds is HHMMSS converted to seconds. return true if sample was accepted
 void dynamics_t::add(const tp timestamp, const float val)
 {
     val_ = val;

@@ -134,6 +134,8 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 
 	if (strncmp(Buffer + 3, "GGA", 3) == 0) // Global positioning system fix data
 	{
+		o_nmea.nmea_msg_type_ = nmea_t::nmea_msg_type_t::kGGA;
+
 		int scanned_positions =
 			sscanf(Buffer + 7, "%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &
 				utc, &lat, &ns, &lon, &ew, &quality, &sats, &hdop, &alt, &alt_units);
@@ -175,6 +177,7 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 					o_nmea.fix_quality = nmea_t::fix_quality_t::kEstimated;
 					break;
 			}
+
 			return true;
 		}
 		else if(scanned_positions > 0 && utc != 0)
@@ -191,6 +194,8 @@ bool NMEA_parse(const char* Buffer, nmea_t& o_nmea)
 	} // GGA
 	else if (strncmp(Buffer+3, "RMC", 3) == 0)
 	{
+		o_nmea.nmea_msg_type_ = nmea_t::nmea_msg_type_t::kRMC;
+
 		speedstring[0] = '\0';
 		coursestring[0] = '\0';
 		int scanned_positions =
@@ -338,8 +343,9 @@ int nmea_t::utc_as_seconds() const
 
 bool nmea_t::valid() const
 {
-	// only one at a time can be valid.
-	// fix_status is from RMC, fix_quality is from GGA
-	return 		fix_status  == fix_status_t::kValid
-			or 	fix_quality != fix_quality_t::kNoFix;
+	if(nmea_msg_type_ == nmea_msg_type_t::kGGA and fix_quality != fix_quality_t::kNoFix)
+		return true;
+	if(nmea_msg_type_ == nmea_msg_type_t::kRMC and fix_status  == fix_status_t::kValid)
+		return true;
+	return false;
 }

@@ -5,26 +5,23 @@
 
 
 // keep data parsed from GGA __and__ RMC messages
+// http://aprs.gids.nl/nmea/#rmc
+// http://aprs.gids.nl/nmea/#gga
+
 class nmea_t
 {
 public:
+	// fields provided by both GGA and RMC messages:
+	//
 	char utc[6] = {'0', '0', '0', '0', '0', '0'}; // HHMMSS
 
 	float lat = 0; // degree
 	float lon = 0; // degree
+
+	// GGA message fields:
+	//
 	float alt = 0; // meters
-
-	float speed_over_ground_mps = 0;
-	float course_over_ground_deg = 0;
-
 	int sats = 0;
-
-	enum class fix_status_t : int {
-		kInvalid=0, // V
-		kValid=1 // A
-	};
-	fix_status_t fix_status = fix_status_t::kInvalid;
-
 	enum class fix_quality_t : int {
 		kNoFix = 0,
 		kAutonomous = 1,
@@ -34,6 +31,25 @@ public:
 		kEstimated = 6
 	};
 	fix_quality_t fix_quality = fix_quality_t::kNoFix;
+
+
+	// RMC message fields:
+	//
+	float speed_over_ground_mps = 0;
+	float course_over_ground_deg = 0;
+	enum class fix_status_t : int {
+		kInvalid=0, // V
+		kValid=1 // A
+	};
+	fix_status_t fix_status = fix_status_t::kInvalid;
+
+	enum class nmea_msg_type_t : int {
+		kUnknown = 0,
+		kGGA = 1,
+		kRMC = 2
+	};
+	nmea_msg_type_t nmea_msg_type_ = nmea_msg_type_t::kUnknown;
+
 
 	std::string str() const;
 	std::string json() const;

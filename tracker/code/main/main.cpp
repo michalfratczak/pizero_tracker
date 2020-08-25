@@ -278,23 +278,18 @@ int main1(int argc, char** argv)
 			LOG.log("nmea.log", nmea_str);
 
 			nmea_t current_nmea;
-			/*
-			// REUSE LAT,LON,ALT FROM LAST VALID SENTENCE
-			// 	if currently parsed NMEA string has valid lat/lon/alt
-			// 	they will be stored in current_nmea
-			// 	otherwise we keep last valid
-			const nmea_t  valid_nmea = GLOB::get().nmea_get();
-			current_nmea.lat = valid_nmea.lat;
-			current_nmea.lon = valid_nmea.lon;
-			current_nmea.alt = valid_nmea.alt;
-			*/
-
 			if( NMEA_parse(nmea_str.c_str(), current_nmea) /*and current_nmea.valid()*/ ) {
+				// RMC has no altitude, copy from last known value
+				if( current_nmea.nmea_msg_type_ == nmea_t::nmea_msg_type_t::kRMC )
+					current_nmea.alt = GLOB::get().nmea_current().alt;
+
 				GLOB::get().nmea_set(current_nmea);
-				if (current_nmea.valid())
+
+				if(current_nmea.valid())
 					GLOB::get().dynamics_add("alt", std::chrono::steady_clock::now(), current_nmea.alt);
 				// cout<<C_MAGENTA<<"alt "<<GLOB::get().dynamics_get("alt").str()<<C_OFF<<endl;
 			}
+			// else - parse error or no lock (even no time)
 		}
 	};
 
@@ -383,14 +378,14 @@ int main1(int argc, char** argv)
 			if(nmea.valid()) {
 				if( abs(dist_from_home.dist_line_) < 200 and abs(dAltAvg) <= 3 )
 					flight_state = flight_state_t::kStandBy;
-				else if(dAltAvg < -8)
-					flight_state = flight_state_t::kFreefall;
-				else if(dAltAvg < -3)
-					flight_state = flight_state_t::kDescend;
-				else if(dAltAvg > 3)
-					flight_state = flight_state_t::kAscend;
 				else if( abs(dist_from_home.dist_line_) > 2000 and abs(dAltAvg) <= 3 and alt.val() < 2000 )
 					flight_state = flight_state_t::kLanded;
+				else if(dAltAvg < -15)
+					flight_state = flight_state_t::kFreefall;
+				else if(dAltAvg < 0)
+					flight_state = flight_state_t::kDescend;
+				else if(dAltAvg >= 0)
+					flight_state = flight_state_t::kAscend;
 			}
 			// cout<<alt.val()<<" "<<alt.dVdT()<<" "<<alt.dVdT_avg()<<" "<<dist_from_home.dist_line_<<endl;
 			GLOB::get().flight_state_set( flight_state );
