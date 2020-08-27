@@ -173,12 +173,16 @@ def SetCameraExif(camera, state):
 
 
 def StateLoop(port):
+	'''
+	query tracker over ZMQ
+	ask for: nmea_current, dynamics, flight_state
+	save in global STATE dictionary
+	'''
 	REQUEST_TIMEOUT = 3000
 	REQUEST_RETRIES = 1e30
 	SERVER_ENDPOINT = "tcp://localhost:" + str(port)
 
 	global STATE
-
 
 	print("Connecting to " + SERVER_ENDPOINT)
 	context = zmq.Context(1)
@@ -186,7 +190,7 @@ def StateLoop(port):
 	client.connect(SERVER_ENDPOINT)
 	poll = zmq.Poller()
 	poll.register(client, zmq.POLLIN)
-	query_msgs = ['nmea', 'dynamics', 'flight_state']
+	query_msgs = ['nmea_current', 'dynamics', 'flight_state']
 
 	retries_left = REQUEST_RETRIES
 	while THREADS_RUN and retries_left:
@@ -231,7 +235,6 @@ def StateLoop(port):
 	context.term()
 
 
-
 def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 	'''
 	picks last image from PHOTO_ARR, converts to SSDV and copies to output
@@ -251,6 +254,7 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 		time.sleep(5)
 
 		if not PHOTO_ARR:
+			print('SSDV_DeliverLoop - PHOTO_ARR empty.')
 			continue
 
 		if os.path.isfile(out_ssdv_path):
@@ -270,7 +274,11 @@ def SSDV_DeliverLoop(callsign, out_ssdv_path, res):
 			pass
 
 
-def next_path(i_base, ext = ''): # get next subdir/subfile
+def next_path(i_base, ext = ''):
+	'''
+	for a directory filled with subdirs or files named like: 000001, 000002, 000003
+	get next dir/file that does not exist yet
+	'''
 	if ext and ext[0] != '.':
 		ext = '.' + ext
 	i = 1
@@ -313,10 +321,8 @@ def CameraLoop(session_dir, opts):
 	global PHOTO_ARR
 
 	snapshot_time = datetime.fromtimestamp(0)
+	hires_photo_time = datetime.fromtimestamp(0)
 
-	alt = 0
-	dAlt = 0
-	dAltAvg = 0
 	global THREADS_RUN
 	while(THREADS_RUN):
 
@@ -333,19 +339,35 @@ def CameraLoop(session_dir, opts):
 			time.sleep(60)
 			continue
 
-		CAMERA.start_preview()
 
-		# full res photo
-		print("Photo HI")
-		CAMERA.resolution = (3280, 2464)
-		SetCameraExif(CAMERA, STATE)
-		CAMERA.annotate_text = ''
-		CAMERA.capture( next_path(photo_hi_dir, 'jpeg'))
+		# make full res photo before recording next clip. not more often than 60 secs.
+		hires_photo_path = None
+		if seconds_since(hires_photo_time) > 60:
+			print("Photo HI")
+			CAMERA.start_preview()
+			CAMERA.resolution = (2592 , 1944 ) # v1
+			# CAMERA.resolution = (3280, 2464) # v2
+			SetCameraExif(CAMERA, STATE)
+			CAMERA.annotate_text = ''
+			hires_photo_path = next_path(photo_hi_dir, 'jpeg')
+			CAMERA.capture( hires_photo_path )
+			CAMERA.stop_preview()
+			hires_photo_time = utcnow()
+
+		# do not record video in standby mode
+		# instead send hires_photo_path to SSDV
+		if 'flight_state' in STATE and STATE['flight_state']['flight_state'] == 'kStandBy':
+			CAMERA.stop_preview()
+			print("flight_state::kStandBy - skip video recording. Send HiRes to SSDV.")
+			PHOTO_ARR.append( hires_photo_path )
+			time.sleep(60)
+			continue
 
 		# video clip
 		print("Video")
 		video_duration_secs = int( opts['cam_video_dur'] )
 		snapshot_interval_secs = int( opts['cam_snapshot_interval'] )
+		CAMERA.start_preview()
 		CAMERA.resolution = (1280, 720)
 		CAMERA.start_recording( next_path(video_dir, 'h264'))
 
@@ -361,6 +383,9 @@ def CameraLoop(session_dir, opts):
 				print("Free disk low - abort camera.")
 				break
 
+			alt = 0
+			dAlt = 0
+			dAltAvg = 0
 			if 'dynamics' in STATE and 'alt' in STATE['dynamics']:
 				alt = 	STATE['dynamics']['alt']['val']
 				dAlt = 	STATE['dynamics']['alt']['dVdT']
@@ -372,9 +397,10 @@ def CameraLoop(session_dir, opts):
 
 			if seconds_since(snapshot_time) > snapshot_interval_secs:
 				print("Photo LO")
-				PHOTO_ARR.append( next_path(photo_lo_dir, 'jpg') )
+				img_path = next_path(photo_lo_dir, 'jpg')
 				CAMERA.capture( PHOTO_ARR[-1] , use_video_port = True )
 				snapshot_time = utcnow()
+				PHOTO_ARR.append( img_path )
 
 			time.sleep(1)
 		CAMERA.stop_recording()
