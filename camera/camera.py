@@ -326,16 +326,30 @@ def CameraLoop(session_dir, opts):
 	global THREADS_RUN
 	while(THREADS_RUN):
 
+		# camera can cause interference to GPS resulting in FIX loss
+		# monitor FIX age and disable camera for 5 minutes
+		if 'nmea_current' in STATE and 'fixAge' in STATE['nmea_current']:
+			fixage = int( STATE['nmea_current']['fixAge'] )
+			if fixage > 180:
+				print('GPS FIX lost. Stop Camera and wait.')
+				CAMERA.stop_preview()
+				while fixage > 180:
+					print('fixage', fixage)
+					time.sleep(5)
+					fixage = int( STATE['nmea_current']['fixAge'] )
+				print("GPS fix reacquired. Waiting 5 minutes to start camera.")
+				time.sleep(5 * 60)
+
 		disk_use_percent = int( psutil.disk_usage('/').percent )
 		if disk_use_percent > 95:
-			CAMERA.stop_preview()
 			print("Free disk space left: ", disk_use_percent, '% . Waiting.')
+			CAMERA.stop_preview()
 			time.sleep(60)
 			continue
 
 		if 'flight_state' in STATE and STATE['flight_state']['flight_state'] == 'kLanded':
-			CAMERA.stop_preview()
 			print("flight_state::klanded - stop camera and wait.")
+			CAMERA.stop_preview()
 			time.sleep(60)
 			continue
 
@@ -377,10 +391,18 @@ def CameraLoop(session_dir, opts):
 			if not THREADS_RUN:
 				break
 
+			fixage = 0
+			if 'nmea_current' in STATE and 'fixAge' in STATE['nmea_current']:
+				fixage = int( STATE['nmea_current']['fixAge'] )
+			if fixage > 180:
+				print("GPS FIX lost - stop camera.")
+				CAMERA.stop_preview()
+				break
+
 			disk_use_percent = int( psutil.disk_usage('/').percent )
 			if disk_use_percent > 95:
-				CAMERA.stop_preview()
 				print("Free disk low - abort camera.")
+				CAMERA.stop_preview()
 				break
 
 			alt = 0
