@@ -398,7 +398,7 @@ def CameraLoop(session_dir, opts):
 			if seconds_since(snapshot_time) > snapshot_interval_secs:
 				print("Photo LO")
 				img_path = next_path(photo_lo_dir, 'jpg')
-				CAMERA.capture( PHOTO_ARR[-1] , use_video_port = True )
+				CAMERA.capture( img_path , use_video_port = True )
 				snapshot_time = utcnow()
 				PHOTO_ARR.append( img_path )
 
