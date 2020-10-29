@@ -58,3 +58,7 @@ sudo apt-get install imagemagick
 ```
 taskset -c 1 ./tracker
 ```
+
+
+## MTX2 datasheet
+http://www.radiometrix.com/files/additional/mtx2.pdf
